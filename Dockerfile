@@ -1,15 +1,6 @@
 FROM node:26-slim AS base
 LABEL org.opencontainers.image.source="https://github.com/docmost/docmost"
 
-# Add the CA certificates to system trust store
-ADD DSOCA50.crt /usr/local/share/ca-certificates/
-ADD DSOCA60.crt /usr/local/share/ca-certificates/
-ADD DSOVisibilityCA.crt /usr/local/share/ca-certificates/
-
-# Update the trusted list of CAs
-RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificates \
-  && rm -rf /var/lib/apt/lists/*
-
 # Node.js ignores the system store by default; point npm/pnpm and the app at it
 ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
 
