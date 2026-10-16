@@ -758,6 +758,70 @@ export interface OauthTokens {
   workspaceId: string;
 }
 
+export interface RequirementSpaceSettings {
+  spaceId: string;
+  workspaceId: string;
+  keyPrefix: string;
+  nextSeq: Generated<number>;
+  keyPadding: Generated<number>;
+  propertySchema: Generated<Json>;
+  createdAt: Generated<Timestamp>;
+  updatedAt: Generated<Timestamp>;
+}
+
+export interface Requirements {
+  id: Generated<string>;
+  workspaceId: string;
+  spaceId: string;
+  pageId: string;
+  nodeId: string;
+  key: string;
+  title: Generated<string>;
+  description: Generated<string>;
+  properties: Generated<Json>;
+  isConflict: Generated<boolean>;
+  tsv: string | null;
+  createdAt: Generated<Timestamp>;
+  updatedAt: Generated<Timestamp>;
+  deletedAt: Timestamp | null;
+}
+
+export interface RequirementLinks {
+  id: Generated<string>;
+  workspaceId: string;
+  sourcePageId: string;
+  sourceSpaceId: string;
+  sourceKey: string | null;
+  targetSpaceId: string;
+  targetKey: string;
+  nodeId: string;
+  createdAt: Generated<Timestamp>;
+}
+
+export interface RequirementBaselines {
+  id: Generated<string>;
+  workspaceId: string;
+  spaceId: string;
+  name: string;
+  description: string | null;
+  version: number;
+  creatorId: string | null;
+  createdAt: Generated<Timestamp>;
+  deletedAt: Timestamp | null;
+}
+
+export interface RequirementBaselineItems {
+  id: Generated<string>;
+  baselineId: string;
+  key: string;
+  title: Generated<string>;
+  description: Generated<string>;
+  properties: Generated<Json>;
+  pageId: string | null;
+  pageTitle: string | null;
+  dependsOnKeys: Generated<string[]>;
+}
+
 export interface DB {
   aiChats: AiChats;
   aiChatMessages: AiChatMessages;
@@ -790,6 +854,11 @@ export interface DB {
   pageVerifiers: PageVerifiers;
   pages: Pages;
   publicSpaces: PublicSpaces;
+  requirementBaselineItems: RequirementBaselineItems;
+  requirementBaselines: RequirementBaselines;
+  requirementLinks: RequirementLinks;
+  requirements: Requirements;
+  requirementSpaceSettings: RequirementSpaceSettings;
   scimTokens: ScimTokens;
   shares: Shares;
   siemDestinations: SiemDestinations;

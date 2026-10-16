@@ -32,6 +32,9 @@ import {
   IconMoodSmile,
   IconRotate2,
   IconSuperscript,
+  IconClipboardCheck,
+  IconLink,
+  IconReportAnalytics,
 } from "@tabler/icons-react";
 import {
   CommandProps,
@@ -62,6 +65,11 @@ import {
   YoutubeIcon,
 } from "@/components/icons";
 import { insertBaseEmbedBlock } from "@/features/editor/components/base-embed/insert-base-embed";
+import {
+  insertRequirementBlock,
+  insertRequirementRef,
+  insertRequirementReport,
+} from "@/features/requirement/utils/insert-requirement";
 
 const CommandGroups: SlashMenuGroupedItemsType = {
   basic: [
@@ -550,6 +558,33 @@ const CommandGroups: SlashMenuGroupedItemsType = {
           .deleteRange(range)
           .setStatus({ text: "", color: "gray" })
           .run();
+      },
+    },
+    {
+      title: "Requirement",
+      description: "Define a requirement with an auto-assigned key.",
+      searchTerms: ["requirement", "req", "spec", "shall", "yogi"],
+      icon: IconClipboardCheck,
+      command: ({ editor, range }: CommandProps) => {
+        insertRequirementBlock(editor, range);
+      },
+    },
+    {
+      title: "Requirement reference",
+      description: "Reference an existing requirement.",
+      searchTerms: ["requirement", "reference", "trace", "link", "covers"],
+      icon: IconLink,
+      command: ({ editor, range }: CommandProps) => {
+        insertRequirementRef(editor, range);
+      },
+    },
+    {
+      title: "Requirements report",
+      description: "Insert a live table of requirements.",
+      searchTerms: ["requirement", "report", "table", "query", "list"],
+      icon: IconReportAnalytics,
+      command: ({ editor, range }: CommandProps) => {
+        insertRequirementReport(editor, range);
       },
     },
     {

@@ -1,0 +1,107 @@
+.block {
+  border: 1px solid var(--mantine-color-default-border);
+  border-left: 3px solid var(--mantine-color-blue-6);
+  border-radius: var(--mantine-radius-sm);
+  margin: 0.75rem 0;
+  background-color: light-dark(
+    var(--mantine-color-gray-0),
+    var(--mantine-color-dark-7)
+  );
+}
+
+.blockConflict {
+  border-left-color: var(--mantine-color-red-6);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+  flex-wrap: wrap;
+}
+
+.titleInput {
+  flex: 1;
+  min-width: 160px;
+}
+
+.titleInput input {
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  padding-left: 0;
+}
+
+.titleText {
+  flex: 1;
+  min-width: 160px;
+  font-weight: 600;
+}
+
+.content {
+  padding: 2px 12px;
+}
+
+.properties {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ref {
+  display: inline-block;
+  border-radius: 3px;
+  padding: 0 6px;
+  font-size: 0.85em;
+  font-weight: 600;
+  font-family: var(--mantine-font-family-monospace);
+  line-height: 1.6;
+  cursor: pointer;
+  white-space: nowrap;
+  vertical-align: baseline;
+  user-select: none;
+  background-color: light-dark(
+    var(--mantine-color-blue-0),
+    rgba(37, 99, 235, 0.25)
+  );
+  color: light-dark(var(--mantine-color-blue-8), var(--mantine-color-blue-3));
+}
+
+.refMissing {
+  text-decoration: line-through;
+  background-color: light-dark(
+    var(--mantine-color-red-0),
+    rgba(224, 49, 49, 0.25)
+  );
+  color: light-dark(var(--mantine-color-red-8), var(--mantine-color-red-3));
+}
+
+.refEmpty {
+  font-style: italic;
+  font-weight: 400;
+}
+
+.report {
+  border: 1px solid var(--mantine-color-default-border);
+  border-radius: var(--mantine-radius-sm);
+  margin: 0.75rem 0;
+  padding: 8px 10px;
+}
+
+.pickerItem {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: var(--mantine-radius-sm);
+  text-align: left;
+}
+
+.pickerItem:hover,
+.pickerItemActive {
+  background-color: light-dark(
+    var(--mantine-color-gray-1),
+    var(--mantine-color-dark-5)
+  );
+}

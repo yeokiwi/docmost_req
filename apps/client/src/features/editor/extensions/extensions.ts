@@ -62,6 +62,9 @@ import {
   Columns,
   Column,
   Status,
+  Requirement,
+  RequirementRef,
+  RequirementReport,
   TransclusionSource,
   TransclusionReference,
   TableView,
@@ -92,6 +95,9 @@ import MathBlockView from "@/features/editor/components/math/math-block.tsx";
 import ImageView from "@/features/editor/components/image/image-view.tsx";
 import CalloutView from "@/features/editor/components/callout/callout-view.tsx";
 import StatusView from "@/features/editor/components/status/status-view.tsx";
+import RequirementView from "@/features/editor/components/requirement/requirement-view.tsx";
+import RequirementRefView from "@/features/editor/components/requirement/requirement-ref-view.tsx";
+import RequirementReportView from "@/features/editor/components/requirement/requirement-report-view.tsx";
 import VideoView from "@/features/editor/components/video/video-view.tsx";
 import AudioView from "@/features/editor/components/audio/audio-view.tsx";
 import AttachmentView from "@/features/editor/components/attachment/attachment-view.tsx";
@@ -199,7 +205,14 @@ export const mainExtensions = [
   SharedStorage,
   Heading,
   UniqueID.configure({
-    types: ["heading", "paragraph", "transclusionSource"],
+    types: [
+      "heading",
+      "paragraph",
+      "transclusionSource",
+      "requirement",
+      "requirementRef",
+      "requirementReport",
+    ],
     filterTransaction: (transaction) => !isChangeOrigin(transaction),
   }),
   Placeholder.configure({
@@ -411,6 +424,15 @@ export const mainExtensions = [
   Status.configure({
     view: StatusView,
   }),
+  Requirement.configure({
+    view: RequirementView,
+  }),
+  RequirementRef.configure({
+    view: RequirementRefView,
+  }),
+  RequirementReport.configure({
+    view: RequirementReportView,
+  }),
   TransclusionSource.configure({
     view: TransclusionView,
   }),
@@ -466,7 +488,10 @@ const TEMPLATE_EXCLUDED_SLASH_ITEMS = new Set([
   "Audio",
   "Synced block",
   "Base (Inline)",
-  "Kanban"
+  "Kanban",
+  "Requirement",
+  "Requirement reference",
+  "Requirements report",
 ]);
 
 const TemplateSlashCommand = Command.configure({

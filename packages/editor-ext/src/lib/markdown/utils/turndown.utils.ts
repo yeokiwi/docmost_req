@@ -27,6 +27,7 @@ export function htmlToMarkdown(html: string): string {
     tabs,
     taskList,
     callout,
+    requirement,
     preserveDetail,
     listParagraph,
     orderedListItem,
@@ -129,6 +130,47 @@ function callout(turndownService: _TurndownService) {
     replacement: function (content: string, node: HTMLInputElement) {
       const calloutType = node.getAttribute('data-callout-type');
       return `\n\n:::${calloutType}\n${content.trim()}\n:::\n\n`;
+    },
+  });
+}
+
+function requirement(turndownService: _TurndownService) {
+  turndownService.addRule('requirement', {
+    filter: function (node: HTMLInputElement) {
+      return (
+        node.nodeName === 'DIV' &&
+        node.getAttribute('data-type') === 'requirement'
+      );
+    },
+    replacement: function (content: string, node: HTMLInputElement) {
+      const key = node.getAttribute('data-key') || '';
+      const title = node.getAttribute('data-title') || '';
+      const heading = `**${key}**${title ? ` ${title}` : ''}`;
+      return `\n\n${heading}\n\n${content.trim()}\n\n`;
+    },
+  });
+
+  turndownService.addRule('requirementRef', {
+    filter: function (node: HTMLInputElement) {
+      return (
+        node.nodeName === 'SPAN' &&
+        node.getAttribute('data-type') === 'requirement-ref'
+      );
+    },
+    replacement: function (_content: string, node: HTMLInputElement) {
+      return node.getAttribute('data-key') || '';
+    },
+  });
+
+  turndownService.addRule('requirementReport', {
+    filter: function (node: HTMLInputElement) {
+      return (
+        node.nodeName === 'DIV' &&
+        node.getAttribute('data-type') === 'requirementReport'
+      );
+    },
+    replacement: function () {
+      return '\n\n[Requirement report]\n\n';
     },
   });
 }

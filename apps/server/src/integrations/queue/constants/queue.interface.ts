@@ -157,3 +157,7 @@ export interface IBaseFormulaRecomputeJob {
   // Used by the bulk-write path (> FORMULA_INLINE_ROW_THRESHOLD).
   rowIds?: string[];
 }
+
+export interface IRequirementIndexJob {
+  pageIds: string[];
+}

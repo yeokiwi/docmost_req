@@ -11,6 +11,11 @@ import {
   Integrations as _Integrations,
   IntegrationConnections as _IntegrationConnections,
   Labels,
+  RequirementBaselineItems,
+  RequirementBaselines,
+  RequirementLinks,
+  Requirements,
+  RequirementSpaceSettings,
   Notifications,
   PageLabels,
   PageAccess as _PageAccess,
@@ -231,6 +236,30 @@ export type InsertableIntegrationConnection =
 export type UpdatableIntegrationConnection = Updateable<
   Omit<_IntegrationConnections, 'id'>
 >;
+
+// Requirement
+export type Requirement = Selectable<Requirements>;
+export type InsertableRequirement = Insertable<Requirements>;
+export type UpdatableRequirement = Updateable<Omit<Requirements, 'id'>>;
+
+// Requirement Link
+export type RequirementLink = Selectable<RequirementLinks>;
+export type InsertableRequirementLink = Insertable<RequirementLinks>;
+
+// Requirement Space Settings
+export type RequirementSpaceSetting = Selectable<RequirementSpaceSettings>;
+export type InsertableRequirementSpaceSetting =
+  Insertable<RequirementSpaceSettings>;
+export type UpdatableRequirementSpaceSetting = Updateable<
+  Omit<RequirementSpaceSettings, 'spaceId'>
+>;
+
+// Requirement Baseline
+export type RequirementBaseline = Selectable<RequirementBaselines>;
+export type InsertableRequirementBaseline = Insertable<RequirementBaselines>;
+export type RequirementBaselineItem = Selectable<RequirementBaselineItems>;
+export type InsertableRequirementBaselineItem =
+  Insertable<RequirementBaselineItems>;
 
 // Label
 export type Label = Selectable<Labels>;

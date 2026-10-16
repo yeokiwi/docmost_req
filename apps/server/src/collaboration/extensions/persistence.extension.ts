@@ -30,6 +30,7 @@ import { isDeepStrictEqual } from 'node:util';
 import {
   IPageHistoryJob,
   IPageMentionNotificationJob,
+  IRequirementIndexJob,
 } from '../../integrations/queue/constants/queue.interface';
 import { Page } from '@docmost/db/types/entity.types';
 import { CollabHistoryService } from '../services/collab-history.service';
@@ -39,6 +40,7 @@ import {
   HISTORY_INTERVAL,
 } from '../constants';
 import { TransclusionService } from '../../core/page/transclusion/transclusion.service';
+import { hasRequirementNodes } from '../../core/requirement/utils/requirement-prosemirror.util';
 
 @Injectable()
 export class PersistenceExtension implements Extension {
@@ -51,6 +53,7 @@ export class PersistenceExtension implements Extension {
     @InjectQueue(QueueName.AI_QUEUE) private aiQueue: Queue,
     @InjectQueue(QueueName.HISTORY_QUEUE) private historyQueue: Queue,
     @InjectQueue(QueueName.NOTIFICATION_QUEUE) private notificationQueue: Queue,
+    @InjectQueue(QueueName.REQUIREMENT_QUEUE) private requirementQueue: Queue,
     private readonly collabHistory: CollabHistoryService,
     private readonly transclusionService: TransclusionService,
   ) {}
@@ -229,6 +232,12 @@ export class PersistenceExtension implements Extension {
         pageIds: [pageId],
         workspaceId: page.workspaceId,
       });
+
+      if (hasRequirementNodes(tiptapJson) || hasRequirementNodes(page.content)) {
+        await this.requirementQueue.add(QueueJob.REQUIREMENT_INDEX, {
+          pageIds: [pageId],
+        } as IRequirementIndexJob);
+      }
 
       await this.enqueuePageHistory(page);
     }

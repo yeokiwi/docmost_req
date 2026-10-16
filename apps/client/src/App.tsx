@@ -68,6 +68,9 @@ const MfaSetupRequiredPage = lazyWithPrefetch(() =>
   })),
 );
 const SpaceTrash = lazyWithPrefetch(() => import("@/pages/space/space-trash.tsx"));
+const SpaceRequirements = lazyWithPrefetch(
+  () => import("@/pages/space/space-requirements.tsx"),
+);
 const UserApiKeys = lazyWithPrefetch(() => import("@/ee/api-key/pages/user-api-keys"));
 const WorkspaceApiKeys = lazyWithPrefetch(
   () => import("@/ee/api-key/pages/workspace-api-keys"),
@@ -173,6 +176,10 @@ export default function App() {
           />
           <Route path={"/s/:spaceSlug"} element={<SpaceHome />} />
           <Route path={"/s/:spaceSlug/trash"} element={<SpaceTrash />} />
+          <Route
+            path={"/s/:spaceSlug/requirements"}
+            element={<SpaceRequirements />}
+          />
           <Route
             path={"/s/:spaceSlug/p/:pageSlug"}
             element={<Page />}

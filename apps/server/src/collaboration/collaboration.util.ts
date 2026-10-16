@@ -41,6 +41,9 @@ import {
   Columns,
   Column,
   Status,
+  Requirement,
+  RequirementRef,
+  RequirementReport,
   addUniqueIdsToDoc,
   htmlToMarkdown,
   TransclusionSource,
@@ -86,7 +89,14 @@ export const tiptapExtensions = [
   }),
   Heading,
   UniqueID.configure({
-    types: ['heading', 'paragraph', 'transclusionSource'],
+    types: [
+      'heading',
+      'paragraph',
+      'transclusionSource',
+      'requirement',
+      'requirementRef',
+      'requirementReport',
+    ],
   }),
   Comment,
   TextAlign.configure({ types: ['heading', 'paragraph'] }),
@@ -140,7 +150,10 @@ export const tiptapExtensions = [
   Footnote,
   FootnoteReference,
   IntegrationCard,
-  IntegrationMention
+  IntegrationMention,
+  Requirement,
+  RequirementRef,
+  RequirementReport,
 ] as any;
 
 export function jsonToHtml(tiptapJson: any) {

@@ -73,6 +73,7 @@ export class PageService {
     @InjectQueue(QueueName.ATTACHMENT_QUEUE) private attachmentQueue: Queue,
     @InjectQueue(QueueName.AI_QUEUE) private aiQueue: Queue,
     @InjectQueue(QueueName.GENERAL_QUEUE) private generalQueue: Queue,
+    @InjectQueue(QueueName.REQUIREMENT_QUEUE) private requirementQueue: Queue,
     private eventEmitter: EventEmitter2,
     private collaborationGateway: CollaborationGateway,
     private readonly watcherService: WatcherService,
@@ -535,6 +536,13 @@ export class PageService {
               delay: 2 * 60 * 1000,
             },
           },
+        );
+
+        // delayed so the job reads the committed space change
+        await this.requirementQueue.add(
+          QueueJob.REQUIREMENT_INDEX,
+          { pageIds: pageIdsToMove },
+          { delay: 5000 },
         );
       }
 

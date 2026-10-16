@@ -1,6 +1,29 @@
 FROM node:26-slim AS base
 LABEL org.opencontainers.image.source="https://github.com/docmost/docmost"
 
+# Add the CA certificates to system trust store
+ADD DSOCA50.crt /usr/local/share/ca-certificates/
+ADD DSOCA60.crt /usr/local/share/ca-certificates/
+ADD DSOVisibilityCA.crt /usr/local/share/ca-certificates/
+
+# Update the trusted list of CAs
+RUN apt-get update && apt-get install -y ca-certificates && update-ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+# Node.js ignores the system store by default; point npm/pnpm and the app at it
+ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
+
+# npm registry to install from. Point this at an internal mirror when
+# registry.npmjs.org is blocked. npm reads npm_config_*, pnpm 11 reads pnpm_config_*.
+ARG NPM_REGISTRY=https://registry.npmjs.org/
+ENV npm_config_registry=${NPM_REGISTRY} \
+    pnpm_config_registry=${NPM_REGISTRY}
+
+# domhandler-5.0.3.tgz is refused by some proxies on registry.npmjs.org, so it is
+# pre-fetched from a mirror. pnpm still checks it against the lockfile integrity hash.
+ARG DOMHANDLER_REGISTRY=https://registry.npmmirror.com/
+ENV DOMHANDLER_REGISTRY=${DOMHANDLER_REGISTRY}
+
 RUN npm install -g pnpm@11.28.2
 
 FROM base AS builder
@@ -9,7 +32,8 @@ WORKDIR /app
 
 COPY . .
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm store add domhandler@5.0.3 --registry=${DOMHANDLER_REGISTRY} \
+  && pnpm install --frozen-lockfile
 RUN pnpm build
 
 FROM base AS installer
@@ -53,7 +77,8 @@ RUN chown -R node:node /app
 USER node
 
 # client package.json is only copied for the lockfile check; its deps are bundled in dist
-RUN pnpm install --frozen-lockfile --prod --filter '!./apps/client' && rm -rf /home/node/.cache/pnpm
+RUN pnpm store add domhandler@5.0.3 --registry=${DOMHANDLER_REGISTRY} \
+  && pnpm install --frozen-lockfile --prod --filter '!./apps/client' && rm -rf /home/node/.cache/pnpm
 
 RUN mkdir -p /app/data/storage
 

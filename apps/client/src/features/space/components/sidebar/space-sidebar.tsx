@@ -20,6 +20,7 @@ import {
   IconStarFilled,
   IconTemplate,
   IconTrash,
+  IconClipboardCheck,
 } from "@tabler/icons-react";
 import {
   useSpaceWatchStatusQuery,
@@ -144,6 +145,27 @@ export function SpaceSidebar() {
                   stroke={2}
                 />
                 <span>{t("Search")}</span>
+              </div>
+            </UnstyledButton>
+
+            <UnstyledButton
+              component={Link}
+              to={`/s/${spaceSlug}/requirements`}
+              className={clsx(
+                classes.menu,
+                location.pathname.toLowerCase() ===
+                  `/s/${spaceSlug}/requirements`.toLowerCase()
+                  ? classes.activeButton
+                  : "",
+              )}
+            >
+              <div className={classes.menuItemInner}>
+                <IconClipboardCheck
+                  size={18}
+                  className={classes.menuItemIcon}
+                  stroke={2}
+                />
+                <span>{t("Requirements")}</span>
               </div>
             </UnstyledButton>
 

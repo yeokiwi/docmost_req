@@ -17,6 +17,7 @@ export enum QueueName {
   SLACK_NOTIFY = '{slack-notify}',
   BASE_QUEUE = '{base-queue}',
   SIEM_QUEUE = '{siem-queue}',
+  REQUIREMENT_QUEUE = '{requirement-queue}',
 }
 
 export enum QueueJob {
@@ -30,6 +31,7 @@ export enum QueueJob {
   DELETE_USER_AVATARS = 'delete-user-avatars',
 
   PAGE_BACKLINKS = 'page-backlinks',
+  REQUIREMENT_INDEX = 'requirement-index',
   ADD_PAGE_WATCHERS = 'add-page-watchers',
 
   STRIPE_SEATS_SYNC = 'sync-stripe-seats',
