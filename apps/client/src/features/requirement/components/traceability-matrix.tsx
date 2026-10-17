@@ -1,6 +1,9 @@
 import { useMemo, useState } from "react";
 import {
+  Badge,
+  Button,
   Group,
+  Switch,
   ScrollArea,
   Stack,
   Table,
@@ -9,7 +12,7 @@ import {
   Tooltip,
 } from "@mantine/core";
 import { useDebouncedValue } from "@mantine/hooks";
-import { IconCheck } from "@tabler/icons-react";
+import { IconArrowsExchange, IconCheck } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { ISpace } from "@/features/space/types/space.types";
 import { useTraceabilityQuery } from "../queries/requirement-query";
@@ -26,6 +29,9 @@ export default function TraceabilityMatrix({ space }: { space: ISpace }) {
   const [rowPrefix, setRowPrefix] = useState("");
   const [colPrefix, setColPrefix] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+  const [swapped, setSwapped] = useState(false);
+  const [hover, setHover] = useState<{ row?: string; col?: string }>({});
   const [debouncedRow] = useDebouncedValue(rowPrefix, 300);
   const [debouncedCol] = useDebouncedValue(colPrefix, 300);
 
@@ -35,16 +41,20 @@ export default function TraceabilityMatrix({ space }: { space: ISpace }) {
     columnFilter: toFilter(debouncedCol),
   });
 
-  const cellSet = useMemo(
-    () => new Set((data?.cells ?? []).map(([r, c]) => `${r}|${c}`)),
-    [data],
-  );
-
-  // only show columns that something depends on, to keep the matrix readable
-  const usedColumns = useMemo(() => {
-    const used = new Set((data?.cells ?? []).map(([, c]) => c));
-    return (data?.columns ?? []).filter((c) => used.has(c.key));
-  }, [data]);
+  // by default only show columns that something depends on, to keep the matrix readable
+  const view = useMemo(() => {
+    const cells = (data?.cells ?? []).map(([r, c]) =>
+      swapped ? ([c, r] as [string, string]) : ([r, c] as [string, string]),
+    );
+    const rows = (swapped ? data?.columns : data?.rows) ?? [];
+    const allColumns = (swapped ? data?.rows : data?.columns) ?? [];
+    const used = new Set(cells.map(([, c]) => c));
+    const columns = showAll ? allColumns : allColumns.filter((c) => used.has(c.key));
+    const set = new Set(cells.map(([r, c]) => `${r}|${c}`));
+    const rowHits = new Map<string, number>();
+    for (const [r] of cells) rowHits.set(r, (rowHits.get(r) ?? 0) + 1);
+    return { rows, columns, set, rowHits, links: cells.length };
+  }, [data, showAll, swapped]);
 
   return (
     <Stack gap="sm">
@@ -68,6 +78,31 @@ export default function TraceabilityMatrix({ space }: { space: ISpace }) {
           value={colPrefix}
           onChange={(e) => setColPrefix(e.currentTarget.value)}
         />
+        <Button
+          variant="default"
+          size="sm"
+          mt={24}
+          leftSection={<IconArrowsExchange size={16} />}
+          onClick={() => setSwapped((v) => !v)}
+        >
+          {t("Swap axes")}
+        </Button>
+        <Switch
+          mt={30}
+          label={t("Show all columns")}
+          checked={showAll}
+          onChange={(e) => setShowAll(e.currentTarget.checked)}
+        />
+        {data && data.rows.length > 0 && (
+          <Group gap="xs" mt={26}>
+            <Badge variant="light" color="gray">
+              {t("{{count}} rows", { count: view.rows.length })}
+            </Badge>
+            <Badge variant="light" color="blue">
+              {t("{{count}} links", { count: view.links })}
+            </Badge>
+          </Group>
+        )}
       </Group>
 
       {data?.truncated && (
@@ -80,7 +115,7 @@ export default function TraceabilityMatrix({ space }: { space: ISpace }) {
         <Text size="sm" c="dimmed">
           {t("Loading...")}
         </Text>
-      ) : !data || data.rows.length === 0 ? (
+      ) : !data || view.rows.length === 0 ? (
         <Text size="sm" c="dimmed">
           {t("No requirements found")}
         </Text>
@@ -89,12 +124,30 @@ export default function TraceabilityMatrix({ space }: { space: ISpace }) {
           <Table withTableBorder withColumnBorders verticalSpacing={2}>
             <Table.Thead>
               <Table.Tr>
-                <Table.Th miw={220}>{t("Requirement")}</Table.Th>
-                <Table.Th ta="center" w={100}>
-                  {t("References")}
+                <Table.Th
+                  miw={220}
+                  style={{
+                    position: "sticky",
+                    left: 0,
+                    zIndex: 2,
+                    background: "var(--mantine-color-body)",
+                  }}
+                >
+                  {swapped ? t("Referenced requirement") : t("Requirement")}
                 </Table.Th>
-                {usedColumns.map((c) => (
-                  <Table.Th key={c.key} ta="center">
+                <Table.Th ta="center" w={90}>
+                  {t("Links")}
+                </Table.Th>
+                {view.columns.map((c) => (
+                  <Table.Th
+                    key={c.key}
+                    ta="center"
+                    bg={
+                      hover.col === c.key
+                        ? "var(--mantine-color-blue-light)"
+                        : undefined
+                    }
+                  >
                     <Tooltip label={c.title || c.key} withinPortal>
                       <Text
                         size="xs"
@@ -114,9 +167,26 @@ export default function TraceabilityMatrix({ space }: { space: ISpace }) {
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
-              {data.rows.map((row) => (
-                <Table.Tr key={row.key}>
-                  <Table.Td>
+              {view.rows.map((row) => (
+                <Table.Tr
+                  key={row.key}
+                  bg={
+                    hover.row === row.key
+                      ? "var(--mantine-color-blue-light)"
+                      : undefined
+                  }
+                >
+                  <Table.Td
+                    style={{
+                      position: "sticky",
+                      left: 0,
+                      zIndex: 1,
+                      background:
+                        hover.row === row.key
+                          ? "var(--mantine-color-blue-light)"
+                          : "var(--mantine-color-body)",
+                    }}
+                  >
                     <Text
                       size="sm"
                       style={{ cursor: "pointer" }}
@@ -132,18 +202,33 @@ export default function TraceabilityMatrix({ space }: { space: ISpace }) {
                   <Table.Td ta="center">
                     <Text
                       size="sm"
-                      c={row.referenceCount ? undefined : "red"}
+                      c={view.rowHits.get(row.key) ? undefined : "orange"}
                     >
-                      {row.referenceCount}
+                      {view.rowHits.get(row.key) ?? 0}
                     </Text>
                   </Table.Td>
-                  {usedColumns.map((c) => (
-                    <Table.Td key={c.key} ta="center">
-                      {cellSet.has(`${row.key}|${c.key}`) && (
-                        <IconCheck
-                          size={14}
-                          color="var(--mantine-color-green-6)"
-                        />
+                  {view.columns.map((c) => (
+                    <Table.Td
+                      key={c.key}
+                      ta="center"
+                      bg={
+                        hover.col === c.key
+                          ? "var(--mantine-color-blue-light)"
+                          : undefined
+                      }
+                      onMouseEnter={() => setHover({ row: row.key, col: c.key })}
+                      onMouseLeave={() => setHover({})}
+                    >
+                      {view.set.has(`${row.key}|${c.key}`) && (
+                        <Tooltip
+                          label={`${row.key} → ${c.key}`}
+                          withinPortal
+                        >
+                          <IconCheck
+                            size={16}
+                            color="var(--mantine-color-green-6)"
+                          />
+                        </Tooltip>
                       )}
                     </Table.Td>
                   ))}

@@ -1,20 +1,34 @@
+import { useState } from "react";
 import {
+  ActionIcon,
   Anchor,
   Badge,
+  Button,
+  CopyButton,
   Divider,
   Drawer,
   Group,
   Loader,
+  Paper,
   Stack,
-  Table,
   Text,
   Title,
+  Tooltip,
 } from "@mantine/core";
+import {
+  IconArrowLeft,
+  IconCheck,
+  IconCircleCheck,
+  IconCircleDashed,
+  IconCopy,
+  IconExternalLink,
+} from "@tabler/icons-react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useRequirementInfoQuery } from "../queries/requirement-query";
 import { useSpaceQuery } from "@/features/space/queries/space-query";
 import { buildPageUrl } from "@/features/page/page.utils";
+import RequirementPropertyBadge from "./requirement-property-badge";
 
 type RequirementDetailDrawerProps = {
   opened: boolean;
@@ -32,10 +46,13 @@ export default function RequirementDetailDrawer({
   requirementKey,
 }: RequirementDetailDrawerProps) {
   const { t } = useTranslation();
+  // dependencies can be followed inside the drawer; the stack allows going back
+  const [trail, setTrail] = useState<{ spaceId: string; key: string }[]>([]);
+  const current = trail[trail.length - 1];
   const { data, isLoading, isError } = useRequirementInfoQuery({
-    requirementId,
-    spaceId,
-    key: requirementKey,
+    requirementId: current ? undefined : requirementId,
+    spaceId: current?.spaceId ?? spaceId,
+    key: current?.key ?? requirementKey,
     enabled: opened,
   });
   const { data: space } = useSpaceQuery(data?.page?.spaceId);
@@ -49,14 +66,38 @@ export default function RequirementDetailDrawer({
   return (
     <Drawer
       opened={opened}
-      onClose={onClose}
+      onClose={() => {
+        setTrail([]);
+        onClose();
+      }}
       position="right"
-      size="md"
+      size="lg"
       title={
         <Group gap="xs">
-          <Badge variant="light" radius="sm" ff="monospace">
-            {requirement?.key ?? requirementKey}
+          {trail.length > 0 && (
+            <ActionIcon
+              variant="subtle"
+              color="gray"
+              aria-label={t("Back")}
+              onClick={() => setTrail((cur) => cur.slice(0, -1))}
+            >
+              <IconArrowLeft size={16} />
+            </ActionIcon>
+          )}
+          <Badge variant="light" radius="sm" ff="monospace" size="lg">
+            {requirement?.key ?? current?.key ?? requirementKey}
           </Badge>
+          {requirement && (
+            <CopyButton value={requirement.key}>
+              {({ copied, copy }) => (
+                <Tooltip label={copied ? t("Copied") : t("Copy key")}>
+                  <ActionIcon variant="subtle" color="gray" onClick={copy}>
+                    {copied ? <IconCheck size={14} /> : <IconCopy size={14} />}
+                  </ActionIcon>
+                </Tooltip>
+              )}
+            </CopyButton>
+          )}
           {requirement?.isConflict && (
             <Badge color="red" variant="light" radius="sm">
               {t("Duplicate key")}
@@ -96,23 +137,53 @@ export default function RequirementDetailDrawer({
             </Text>
           )}
 
+          <Group gap="xs">
+            {data.referencedByPages.length ? (
+              <Badge
+                color="green"
+                variant="light"
+                leftSection={<IconCircleCheck size={12} />}
+              >
+                {t("Covered by {{count}} pages", {
+                  count: data.referencedByPages.length,
+                })}
+              </Badge>
+            ) : (
+              <Badge
+                color="orange"
+                variant="light"
+                leftSection={<IconCircleDashed size={12} />}
+              >
+                {t("Not covered")}
+              </Badge>
+            )}
+            {data.page && (
+              <Button
+                component={Link}
+                to={pageUrl(data.page.slugId, data.page.title)}
+                onClick={onClose}
+                size="compact-xs"
+                variant="default"
+                leftSection={<IconExternalLink size={12} />}
+              >
+                {t("Open in page")}
+              </Button>
+            )}
+          </Group>
+
           {properties.length > 0 && (
-            <Table withTableBorder withColumnBorders>
-              <Table.Tbody>
+            <Paper withBorder radius="md" p="sm">
+              <Group gap="xl" align="flex-start">
                 {properties.map(([name, value]) => (
-                  <Table.Tr key={name}>
-                    <Table.Td w="40%">
-                      <Text size="sm" fw={500}>
-                        {name}
-                      </Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm">{value}</Text>
-                    </Table.Td>
-                  </Table.Tr>
+                  <div key={name}>
+                    <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+                      {name}
+                    </Text>
+                    <RequirementPropertyBadge value={value} />
+                  </div>
                 ))}
-              </Table.Tbody>
-            </Table>
+              </Group>
+            </Paper>
           )}
 
           <Divider label={t("Depends on")} labelPosition="left" />
@@ -129,6 +200,14 @@ export default function RequirementDetailDrawer({
                     radius="sm"
                     ff="monospace"
                     color={dep.targetId ? "blue" : "red"}
+                    style={{ cursor: dep.targetId ? "pointer" : undefined }}
+                    onClick={() =>
+                      dep.targetId &&
+                      setTrail((cur) => [
+                        ...cur,
+                        { spaceId: dep.targetSpaceId, key: dep.targetKey },
+                      ])
+                    }
                   >
                     {dep.targetKey}
                   </Badge>
@@ -149,7 +228,19 @@ export default function RequirementDetailDrawer({
             <Stack gap={4}>
               {data.referencedByRequirements.map((l) => (
                 <Group key={`${l.sourcePageId}:${l.sourceKey}`} gap="xs">
-                  <Badge variant="light" radius="sm" ff="monospace">
+                  <Badge
+                    variant="light"
+                    radius="sm"
+                    ff="monospace"
+                    style={{ cursor: l.sourceKey ? "pointer" : undefined }}
+                    onClick={() =>
+                      l.sourceKey &&
+                      setTrail((cur) => [
+                        ...cur,
+                        { spaceId: l.sourceSpaceId, key: l.sourceKey! },
+                      ])
+                    }
+                  >
                     {l.sourceKey}
                   </Badge>
                   <Anchor

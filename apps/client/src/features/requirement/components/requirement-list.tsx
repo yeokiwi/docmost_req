@@ -1,22 +1,33 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Alert,
   Badge,
   Button,
+  Checkbox,
   Group,
   Menu,
+  Select,
   Pagination,
   SegmentedControl,
   Stack,
   Table,
   Text,
   TextInput,
+  Tooltip,
 } from "@mantine/core";
 import { useDebouncedValue } from "@mantine/hooks";
 import {
+  IconAlertTriangle,
+  IconArrowsSort,
+  IconCircleCheck,
+  IconCircleDashed,
+  IconColumns,
   IconDownload,
   IconFileSpreadsheet,
+  IconFilterOff,
   IconSearch,
+  IconSortAscending,
+  IconSortDescending,
   IconUpload,
 } from "@tabler/icons-react";
 import { Link } from "react-router-dom";
@@ -30,11 +41,11 @@ import {
   useRequirementsQuery,
 } from "../queries/requirement-query";
 import { exportRequirements } from "../services/requirement-service";
-import { textToProperties } from "../utils/requirement-filter";
 import {
   IRequirementFilter,
   RequirementCoverage,
 } from "../types/requirement.types";
+import RequirementPropertyBadge from "./requirement-property-badge";
 import RequirementDetailDrawer from "./requirement-detail-drawer";
 import ImportRequirementsModal from "./import-requirements-modal";
 
@@ -49,15 +60,22 @@ export default function RequirementList({
 }) {
   const { t } = useTranslation();
   const [text, setText] = useState("");
-  const [propertiesText, setPropertiesText] = useState("");
+  const [propertyFilters, setPropertyFilters] = useState<
+    Record<string, string>
+  >({});
+  const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
+  const [sort, setSort] = useState<{
+    field: string;
+    dir: "asc" | "desc";
+  } | null>(null);
   const [coverage, setCoverage] = useState<RequirementCoverage>("any");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string | null>(null);
   const [importOpened, setImportOpened] = useState(false);
   const [debouncedText] = useDebouncedValue(text, 300);
-  const [debouncedProps] = useDebouncedValue(propertiesText, 300);
 
-  const properties = textToProperties(debouncedProps);
+  const [debouncedProps] = useDebouncedValue(propertyFilters, 300);
+  const properties = debouncedProps;
   const filter: IRequirementFilter = {
     text: debouncedText.trim() || undefined,
     properties: Object.keys(properties).length ? properties : undefined,
@@ -72,7 +90,74 @@ export default function RequirementList({
     offset: (page - 1) * PAGE_SIZE,
   });
 
-  const columns = (settings?.propertySchema ?? []).map((d) => d.name);
+  const schema = settings?.propertySchema ?? [];
+  const columns = schema.map((d) => d.name).filter((n) => !hiddenColumns.includes(n));
+  const activeFilterCount =
+    Object.keys(propertyFilters).length +
+    (text ? 1 : 0) +
+    (coverage !== "any" ? 1 : 0);
+
+  const items = useMemo(() => {
+    const list = [...(data?.items ?? [])];
+    if (!sort) return list;
+    const value = (r: (typeof list)[number]) =>
+      sort.field === "title"
+        ? r.title
+        : sort.field === "references"
+          ? r.referenceCount
+          : sort.field === "key"
+            ? r.key
+            : (r.properties?.[sort.field] ?? "");
+    list.sort((a, b) => {
+      const va = value(a);
+      const vb = value(b);
+      const cmp =
+        typeof va === "number" && typeof vb === "number"
+          ? va - vb
+          : String(va).localeCompare(String(vb), undefined, { numeric: true });
+      return sort.dir === "asc" ? cmp : -cmp;
+    });
+    return list;
+  }, [data, sort]);
+
+  const toggleSort = (field: string) =>
+    setSort((cur) =>
+      cur?.field !== field
+        ? { field, dir: "asc" }
+        : cur.dir === "asc"
+          ? { field, dir: "desc" }
+          : null,
+    );
+
+  const sortIcon = (field: string) =>
+    sort?.field !== field ? (
+      <IconArrowsSort size={14} opacity={0.4} />
+    ) : sort.dir === "asc" ? (
+      <IconSortAscending size={14} />
+    ) : (
+      <IconSortDescending size={14} />
+    );
+
+  const sortableHead = (field: string, label: string, width?: number) => (
+    <Table.Th w={width}>
+      <Group
+        gap={4}
+        wrap="nowrap"
+        style={{ cursor: "pointer", userSelect: "none" }}
+        onClick={() => toggleSort(field)}
+      >
+        {label}
+        {sortIcon(field)}
+      </Group>
+    </Table.Th>
+  );
+
+  const resetFilters = () => {
+    setText("");
+    setPropertyFilters({});
+    setCoverage("any");
+    setPage(1);
+  };
   const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
 
   const handleExport = async (format: "xlsx" | "csv") => {
@@ -108,15 +193,40 @@ export default function RequirementList({
               setPage(1);
             }}
           />
-          <TextInput
-            size="sm"
-            placeholder="Priority=High, Status=Approved"
-            value={propertiesText}
-            onChange={(e) => {
-              setPropertiesText(e.currentTarget.value);
+          {schema.map((d) => {
+            const setValue = (v: string | null) => {
+              setPropertyFilters((cur) => {
+                const next = { ...cur };
+                if (v) next[d.name] = v;
+                else delete next[d.name];
+                return next;
+              });
               setPage(1);
-            }}
-          />
+            };
+            return d.type === "select" ? (
+              <Select
+                key={d.name}
+                size="sm"
+                w={150}
+                clearable
+                placeholder={d.name}
+                aria-label={d.name}
+                data={d.options ?? []}
+                value={propertyFilters[d.name] ?? null}
+                onChange={setValue}
+              />
+            ) : (
+              <TextInput
+                key={d.name}
+                size="sm"
+                w={150}
+                placeholder={d.name}
+                aria-label={d.name}
+                value={propertyFilters[d.name] ?? ""}
+                onChange={(e) => setValue(e.currentTarget.value || null)}
+              />
+            );
+          })}
           <SegmentedControl
             size="sm"
             value={coverage}
@@ -130,9 +240,52 @@ export default function RequirementList({
               { value: "uncovered", label: t("Not covered") },
             ]}
           />
+          {activeFilterCount > 0 && (
+            <Button
+              variant="subtle"
+              color="gray"
+              size="sm"
+              leftSection={<IconFilterOff size={16} />}
+              onClick={resetFilters}
+            >
+              {t("Clear filters")}
+            </Button>
+          )}
         </Group>
 
         <Group gap="xs">
+          {schema.length > 0 && (
+            <Menu position="bottom-end" withinPortal closeOnItemClick={false}>
+              <Menu.Target>
+                <Button
+                  variant="default"
+                  size="sm"
+                  leftSection={<IconColumns size={16} />}
+                >
+                  {t("Columns")}
+                </Button>
+              </Menu.Target>
+              <Menu.Dropdown p="xs">
+                <Stack gap="xs">
+                  {schema.map((d) => (
+                    <Checkbox
+                      key={d.name}
+                      size="xs"
+                      label={d.name}
+                      checked={!hiddenColumns.includes(d.name)}
+                      onChange={(e) =>
+                        setHiddenColumns((cur) =>
+                          e.currentTarget.checked
+                            ? cur.filter((n) => n !== d.name)
+                            : [...cur, d.name],
+                        )
+                      }
+                    />
+                  ))}
+                </Stack>
+              </Menu.Dropdown>
+            </Menu>
+          )}
           {canEdit && settings && (
             <Button
               variant="default"
@@ -171,6 +324,13 @@ export default function RequirementList({
         </Group>
       </Group>
 
+      {data && (
+        <Text size="xs" c="dimmed">
+          {t("{{count}} requirements", { count: data.total })}
+          {activeFilterCount > 0 && ` · ${t("filtered")}`}
+        </Text>
+      )}
+
       {data?.truncated && (
         <Text size="xs" c="dimmed">
           {t("Showing the first {{count}} matches. Refine the filter.", {
@@ -183,24 +343,52 @@ export default function RequirementList({
         <Table highlightOnHover verticalSpacing="xs">
           <Table.Thead>
             <Table.Tr>
-              <Table.Th w={120}>{t("Key")}</Table.Th>
-              <Table.Th>{t("Title")}</Table.Th>
-              {columns.map((c) => (
-                <Table.Th key={c}>{c}</Table.Th>
-              ))}
+              <Table.Th w={28} />
+              {sortableHead("key", t("Key"), 130)}
+              {sortableHead("title", t("Title"))}
+              {columns.map((c) => sortableHead(c, c))}
               <Table.Th w={120}>{t("Depends on")}</Table.Th>
-              <Table.Th w={100}>{t("References")}</Table.Th>
+              {sortableHead("references", t("References"), 110)}
               <Table.Th>{t("Page")}</Table.Th>
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {data?.items.length ? (
-              data.items.map((r) => (
+            {items.length ? (
+              items.map((r) => (
                 <Table.Tr
                   key={r.id}
                   style={{ cursor: "pointer" }}
                   onClick={() => setSelected(r.key)}
                 >
+                  <Table.Td>
+                    <Tooltip
+                      label={
+                        r.isConflict
+                          ? t("Duplicate key")
+                          : r.referenceCount
+                            ? t("Covered")
+                            : t("Not covered")
+                      }
+                      withinPortal
+                    >
+                      {r.isConflict ? (
+                        <IconAlertTriangle
+                          size={16}
+                          color="var(--mantine-color-red-6)"
+                        />
+                      ) : r.referenceCount ? (
+                        <IconCircleCheck
+                          size={16}
+                          color="var(--mantine-color-green-6)"
+                        />
+                      ) : (
+                        <IconCircleDashed
+                          size={16}
+                          color="var(--mantine-color-orange-6)"
+                        />
+                      )}
+                    </Tooltip>
+                  </Table.Td>
                   <Table.Td>
                     <Badge
                       variant="light"
@@ -218,18 +406,39 @@ export default function RequirementList({
                   </Table.Td>
                   {columns.map((c) => (
                     <Table.Td key={c}>
-                      <Text size="sm">{r.properties?.[c] ?? ""}</Text>
+                      <RequirementPropertyBadge value={r.properties?.[c]} />
                     </Table.Td>
                   ))}
                   <Table.Td>
-                    <Text size="xs" ff="monospace">
-                      {r.dependsOn?.join(", ")}
-                    </Text>
+                    <Group gap={4}>
+                      {r.dependsOn?.slice(0, 3).map((k) => (
+                        <Badge
+                          key={k}
+                          variant="outline"
+                          color="gray"
+                          size="xs"
+                          radius="sm"
+                          ff="monospace"
+                        >
+                          {k}
+                        </Badge>
+                      ))}
+                      {(r.dependsOn?.length ?? 0) > 3 && (
+                        <Text size="xs" c="dimmed">
+                          +{r.dependsOn.length - 3}
+                        </Text>
+                      )}
+                    </Group>
                   </Table.Td>
                   <Table.Td>
-                    <Text size="sm" c={r.referenceCount ? undefined : "red"}>
+                    <Badge
+                      variant={r.referenceCount ? "light" : "outline"}
+                      color={r.referenceCount ? "green" : "orange"}
+                      size="sm"
+                      circle
+                    >
                       {r.referenceCount}
-                    </Text>
+                    </Badge>
                   </Table.Td>
                   <Table.Td>
                     <Text
@@ -246,7 +455,7 @@ export default function RequirementList({
                 </Table.Tr>
               ))
             ) : (
-              <NoTableResults colSpan={5 + columns.length} />
+              <NoTableResults colSpan={6 + columns.length} />
             )}
           </Table.Tbody>
         </Table>

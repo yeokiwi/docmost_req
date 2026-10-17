@@ -1,5 +1,6 @@
 import { Container, Tabs, Text, Title } from "@mantine/core";
 import {
+  IconChartDonut,
   IconGitBranch,
   IconHistory,
   IconListDetails,
@@ -13,11 +14,12 @@ import {
   SpaceCaslSubject,
 } from "@/features/space/permissions/permissions.type.ts";
 import { DocumentTitle } from "@/components/ui/document-title.tsx";
+import RequirementOverview from "@/features/requirement/components/requirement-overview.tsx";
 import RequirementList from "@/features/requirement/components/requirement-list.tsx";
 import TraceabilityMatrix from "@/features/requirement/components/traceability-matrix.tsx";
 import BaselinePanel from "@/features/requirement/components/baseline-panel.tsx";
 
-const TABS = ["list", "traceability", "baselines"];
+const TABS = ["overview", "list", "traceability", "baselines"];
 
 export default function SpaceRequirements() {
   const { t } = useTranslation();
@@ -27,7 +29,7 @@ export default function SpaceRequirements() {
   const spaceAbility = useSpaceAbility(space?.membership?.permissions);
 
   const tabParam = searchParams.get("tab");
-  const activeTab = tabParam && TABS.includes(tabParam) ? tabParam : "list";
+  const activeTab = tabParam && TABS.includes(tabParam) ? tabParam : "overview";
 
   if (!space) {
     return <></>;
@@ -57,6 +59,12 @@ export default function SpaceRequirements() {
           keepMounted={false}
         >
           <Tabs.List mb="md">
+            <Tabs.Tab
+              value="overview"
+              leftSection={<IconChartDonut size={16} />}
+            >
+              {t("Overview")}
+            </Tabs.Tab>
             <Tabs.Tab value="list" leftSection={<IconListDetails size={16} />}>
               {t("Requirements")}
             </Tabs.Tab>
@@ -71,6 +79,9 @@ export default function SpaceRequirements() {
             </Tabs.Tab>
           </Tabs.List>
 
+          <Tabs.Panel value="overview">
+            <RequirementOverview space={space} />
+          </Tabs.Panel>
           <Tabs.Panel value="list">
             <RequirementList space={space} canEdit={canEdit} />
           </Tabs.Panel>
