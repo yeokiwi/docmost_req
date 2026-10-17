@@ -10,25 +10,25 @@ services:
     depends_on:
       - db
       - redis
+      - drawio
     environment:
       APP_URL: 'http://localhost:3000'
       APP_SECRET: '${APP_SECRET:?Set APP_SECRET in .env - generate one with: openssl rand -hex 32}'
       DATABASE_URL: 'postgresql://docmost:STRONG_DB_PASSWORD@db:5432/docmost'
       REDIS_URL: 'redis://redis:6379'
-      # draw.io editor URL as seen by the browser. Leave empty to use https://embed.diagrams.net,
-      # or run the optional drawio service below (docker compose --profile drawio up) and set
-      # DRAWIO_URL=http://localhost:8080 in .env when the browser has no internet access.
-      DRAWIO_URL: '${DRAWIO_URL:-}'
+      # draw.io editor URL as seen by the browser (not a Docker-internal name). Defaults to the
+      # self-hosted drawio service below; set DRAWIO_URL in .env when users reach this host by
+      # another name, e.g. DRAWIO_URL=http://wiki.example.com:8080
+      DRAWIO_URL: '${DRAWIO_URL:-http://localhost:8080}'
     ports:
       - "3000:3000"
     restart: unless-stopped
     volumes:
       - docmost:/app/data/storage
 
-  # optional self-hosted draw.io for networks that cannot reach embed.diagrams.net
+  # self-hosted draw.io, so diagrams work without access to embed.diagrams.net
   drawio:
-    image: jgraph/drawio:latest
-    profiles: ["drawio"]
+    image: ${DRAWIO_IMAGE:-jgraph/drawio:latest}
     ports:
       - "8080:8080"
     restart: unless-stopped
