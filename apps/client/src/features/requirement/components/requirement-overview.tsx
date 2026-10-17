@@ -10,21 +10,21 @@ import {
   RingProgress,
   SimpleGrid,
   Stack,
+  Table,
   Text,
   Tooltip,
 } from "@mantine/core";
 import {
   IconAlertTriangle,
-  IconCircleCheck,
-  IconCircleDashed,
-  IconCopy,
-  IconLink,
 } from "@tabler/icons-react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { ISpace } from "@/features/space/types/space.types";
 import { buildPageUrl } from "@/features/page/page.utils";
+import { formattedDate } from "@/lib/time";
+import RequirementKey from "./requirement-key";
 import {
+  useBaselinesQuery,
   useRequirementSettingsQuery,
   useRequirementsQuery,
 } from "../queries/requirement-query";
@@ -33,55 +33,12 @@ import RequirementDetailDrawer from "./requirement-detail-drawer";
 
 const FETCH_LIMIT = 500;
 
-function StatCard({
-  icon,
-  color,
-  label,
-  value,
-  hint,
-}: {
-  icon: React.ReactNode;
-  color: string;
-  label: string;
-  value: string | number;
-  hint?: string;
-}) {
-  return (
-    <Paper withBorder p="md" radius="md">
-      <Group gap="sm" wrap="nowrap">
-        <Badge
-          variant="light"
-          color={color}
-          size="xl"
-          radius="md"
-          w={40}
-          h={40}
-          p={0}
-        >
-          {icon}
-        </Badge>
-        <div>
-          <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-            {label}
-          </Text>
-          <Text fw={700} fz={24} lh={1.1}>
-            {value}
-          </Text>
-          {hint && (
-            <Text size="xs" c="dimmed">
-              {hint}
-            </Text>
-          )}
-        </div>
-      </Group>
-    </Paper>
-  );
-}
-
 export default function RequirementOverview({ space }: { space: ISpace }) {
   const { t } = useTranslation();
   const [selected, setSelected] = useState<string | null>(null);
   const { data: settings } = useRequirementSettingsQuery(space.id);
+  const { data: baselines } = useBaselinesQuery(space.id);
+  const lastBaseline = baselines?.[0];
   const { data, isLoading } = useRequirementsQuery({
     spaceId: space.id,
     limit: FETCH_LIMIT,
@@ -126,7 +83,13 @@ export default function RequirementOverview({ space }: { space: ISpace }) {
         return { name: d.name, rows };
       });
 
+    const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
+    const recent = [...items]
+      .sort((x, y) => +new Date(y.updatedAt) - +new Date(x.updatedAt))
+      .slice(0, 5);
     return {
+      recent,
+      thisWeek: items.filter((r) => +new Date(r.createdAt) > weekAgo).length,
       total: items.length,
       covered: covered.length,
       uncovered,
@@ -165,35 +128,119 @@ export default function RequirementOverview({ space }: { space: ISpace }) {
       )}
 
       <SimpleGrid cols={{ base: 1, xs: 2, md: 4 }}>
-        <StatCard
-          icon={<IconLink size={20} />}
-          color="blue"
-          label={t("Requirements")}
-          value={stats.total}
-          hint={t("{{count}} with dependencies", { count: stats.withDeps })}
-        />
-        <StatCard
-          icon={<IconCircleCheck size={20} />}
-          color="green"
-          label={t("Covered")}
-          value={stats.covered}
-          hint={t("Referenced by at least one page")}
-        />
-        <StatCard
-          icon={<IconCircleDashed size={20} />}
-          color={stats.uncovered.length ? "orange" : "gray"}
-          label={t("Not covered")}
-          value={stats.uncovered.length}
-          hint={t("No page references them")}
-        />
-        <StatCard
-          icon={<IconCopy size={20} />}
-          color={stats.duplicates.length ? "red" : "gray"}
-          label={t("Duplicate keys")}
-          value={stats.duplicates.length}
-          hint={t("Need to be renumbered")}
-        />
+        <Paper withBorder p="md" radius="md">
+          <Text size="sm" c="dimmed">
+            {t("Requirements")}
+          </Text>
+          <Text fz={28} fw={700} lh={1.2}>
+            {stats.total}
+          </Text>
+          <Text size="sm" c="dimmed">
+            {t("+{{count}} this week", { count: stats.thisWeek })}
+          </Text>
+        </Paper>
+        <Paper withBorder p="md" radius="md">
+          <Text size="sm" c="dimmed">
+            {t("Covered")}
+          </Text>
+          <Text fz={28} fw={700} lh={1.2}>
+            {coveragePct}%
+          </Text>
+          <Progress value={coveragePct} color="green" size="sm" mt={4} />
+        </Paper>
+        <Paper
+          withBorder
+          p="md"
+          radius="md"
+          style={
+            stats.duplicates.length
+              ? { borderColor: "var(--mantine-color-red-6)" }
+              : undefined
+          }
+        >
+          <Text size="sm" c="dimmed">
+            {t("Validation issues")}
+          </Text>
+          <Text
+            fz={28}
+            fw={700}
+            lh={1.2}
+            c={stats.duplicates.length ? "red.7" : undefined}
+          >
+            {stats.duplicates.length}
+          </Text>
+          <Text size="sm" c="dimmed">
+            {t("{{count}} not covered", { count: stats.uncovered.length })}
+          </Text>
+        </Paper>
+        <Paper withBorder p="md" radius="md">
+          <Text size="sm" c="dimmed">
+            {t("Last baseline")}
+          </Text>
+          {lastBaseline ? (
+            <>
+              <Text fz={22} fw={700} lh={1.4}>
+                BL-{lastBaseline.version} · {lastBaseline.name}
+              </Text>
+              <Text size="sm" c="dimmed">
+                {formattedDate(new Date(lastBaseline.createdAt))}
+              </Text>
+            </>
+          ) : (
+            <Text fz={22} fw={700} lh={1.4} c="dimmed">
+              {t("None yet")}
+            </Text>
+          )}
+        </Paper>
       </SimpleGrid>
+
+      <Card withBorder radius="md" padding="md">
+        <Text fw={600} fz="lg" mb="xs">
+          {t("Recently updated requirements")}
+        </Text>
+        <Table verticalSpacing="xs">
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th w={150}>{t("Key")}</Table.Th>
+              <Table.Th>{t("Title")}</Table.Th>
+              <Table.Th>{t("Page")}</Table.Th>
+              <Table.Th w={140}>{t("Updated")}</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {stats.recent.map((r) => (
+              <Table.Tr key={r.id}>
+                <Table.Td>
+                  <RequirementKey
+                    value={r.key}
+                    conflict={r.isConflict}
+                    onClick={() => setSelected(r.key)}
+                  />
+                </Table.Td>
+                <Table.Td>
+                  <Text size="sm" lineClamp={1}>
+                    {r.title || t("Untitled")}
+                  </Text>
+                </Table.Td>
+                <Table.Td>
+                  <Anchor
+                    size="sm"
+                    component={Link}
+                    to={buildPageUrl(space.slug, r.pageSlugId, r.pageTitle)}
+                  >
+                    {r.pageTitle || t("Untitled")}
+                  </Anchor>
+                </Table.Td>
+                <Table.Td>
+                  <Text size="sm" c="dimmed">
+                    {formattedDate(new Date(r.updatedAt))}
+                  </Text>
+                </Table.Td>
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      </Card>
 
       <SimpleGrid cols={{ base: 1, md: 3 }}>
         <Card withBorder radius="md" padding="md">

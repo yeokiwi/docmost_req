@@ -11,6 +11,7 @@ import {
   Loader,
   Paper,
   Stack,
+  Tabs,
   Text,
   Title,
   Tooltip,
@@ -186,6 +187,18 @@ export default function RequirementDetailDrawer({
             </Paper>
           )}
 
+          <Tabs defaultValue="deps" keepMounted={false}>
+            <Tabs.List mb="sm">
+              <Tabs.Tab value="deps">
+                {t("Dependencies")} (
+                {data.dependsOn.length + data.referencedByRequirements.length})
+              </Tabs.Tab>
+              <Tabs.Tab value="pages">
+                {t("Pages")} ({data.referencedByPages.length})
+              </Tabs.Tab>
+            </Tabs.List>
+            <Tabs.Panel value="deps">
+              <Stack gap="md">
           <Divider label={t("Depends on")} labelPosition="left" />
           {data.dependsOn.length === 0 ? (
             <Text size="sm" c="dimmed">
@@ -256,6 +269,10 @@ export default function RequirementDetailDrawer({
             </Stack>
           )}
 
+              </Stack>
+            </Tabs.Panel>
+            <Tabs.Panel value="pages">
+              <Stack gap="md">
           <Divider label={t("Referenced by pages")} labelPosition="left" />
           {data.referencedByPages.length === 0 ? (
             <Text size="sm" c="dimmed">
@@ -276,6 +293,30 @@ export default function RequirementDetailDrawer({
               ))}
             </Stack>
           )}
+              </Stack>
+            </Tabs.Panel>
+          </Tabs>
+
+          <Group gap="xs">
+            <CopyButton value={window.location.href}>
+              {({ copied, copy }) => (
+                <Button size="compact-sm" variant="default" onClick={copy}>
+                  {copied ? t("Copied") : t("Copy link")}
+                </Button>
+              )}
+            </CopyButton>
+            {space && (
+              <Button
+                size="compact-sm"
+                variant="default"
+                component={Link}
+                to={`/s/${space.slug}/requirements?tab=traceability&start=${encodeURIComponent(requirement.key)}`}
+                onClick={onClose}
+              >
+                {t("Trace")}
+              </Button>
+            )}
+          </Group>
         </Stack>
       )}
     </Drawer>

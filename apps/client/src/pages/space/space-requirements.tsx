@@ -4,6 +4,7 @@ import {
   IconGitBranch,
   IconHistory,
   IconListDetails,
+  IconTargetArrow,
 } from "@tabler/icons-react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -16,10 +17,11 @@ import {
 import { DocumentTitle } from "@/components/ui/document-title.tsx";
 import RequirementOverview from "@/features/requirement/components/requirement-overview.tsx";
 import RequirementList from "@/features/requirement/components/requirement-list.tsx";
-import TraceabilityMatrix from "@/features/requirement/components/traceability-matrix.tsx";
+import TraceTree from "@/features/requirement/components/trace-tree.tsx";
+import CoveragePanel from "@/features/requirement/components/coverage-panel.tsx";
 import BaselinePanel from "@/features/requirement/components/baseline-panel.tsx";
 
-const TABS = ["overview", "list", "traceability", "baselines"];
+const TABS = ["overview", "list", "traceability", "coverage", "baselines"];
 
 export default function SpaceRequirements() {
   const { t } = useTranslation();
@@ -74,6 +76,9 @@ export default function SpaceRequirements() {
             >
               {t("Traceability")}
             </Tabs.Tab>
+            <Tabs.Tab value="coverage" leftSection={<IconTargetArrow size={16} />}>
+              {t("Coverage")}
+            </Tabs.Tab>
             <Tabs.Tab value="baselines" leftSection={<IconHistory size={16} />}>
               {t("Baselines")}
             </Tabs.Tab>
@@ -86,7 +91,10 @@ export default function SpaceRequirements() {
             <RequirementList space={space} canEdit={canEdit} />
           </Tabs.Panel>
           <Tabs.Panel value="traceability">
-            <TraceabilityMatrix space={space} />
+            <TraceTree space={space} />
+          </Tabs.Panel>
+          <Tabs.Panel value="coverage">
+            <CoveragePanel space={space} />
           </Tabs.Panel>
           <Tabs.Panel value="baselines">
             <BaselinePanel

@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Checkbox,
+  CopyButton,
   Group,
   Menu,
   Select,
@@ -13,14 +14,10 @@ import {
   Table,
   Text,
   TextInput,
-  Tooltip,
 } from "@mantine/core";
 import { useDebouncedValue } from "@mantine/hooks";
 import {
-  IconAlertTriangle,
   IconArrowsSort,
-  IconCircleCheck,
-  IconCircleDashed,
   IconColumns,
   IconDownload,
   IconFileSpreadsheet,
@@ -30,7 +27,7 @@ import {
   IconSortDescending,
   IconUpload,
 } from "@tabler/icons-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { notifications } from "@mantine/notifications";
 import { ISpace } from "@/features/space/types/space.types";
@@ -46,10 +43,11 @@ import {
   RequirementCoverage,
 } from "../types/requirement.types";
 import RequirementPropertyBadge from "./requirement-property-badge";
+import RequirementKey, { StatusLozenge } from "./requirement-key";
 import RequirementDetailDrawer from "./requirement-detail-drawer";
 import ImportRequirementsModal from "./import-requirements-modal";
 
-const PAGE_SIZE = 50;
+const PAGE_SIZES = ["25", "50", "100", "500"];
 
 export default function RequirementList({
   space,
@@ -59,16 +57,48 @@ export default function RequirementList({
   canEdit: boolean;
 }) {
   const { t } = useTranslation();
-  const [text, setText] = useState("");
-  const [propertyFilters, setPropertyFilters] = useState<
-    Record<string, string>
-  >({});
+  // UI-GEN-008: filters, page size and sort are kept in the URL so views can be shared
+  const [searchParams, setSearchParams] = useSearchParams();
+  const setParam = (name: string, value: string | null) =>
+    setSearchParams(
+      (cur) => {
+        const next = new URLSearchParams(cur);
+        if (value) next.set(name, value);
+        else next.delete(name);
+        return next;
+      },
+      { replace: true },
+    );
+  const text = searchParams.get("q") ?? "";
+  const setText = (v: string) => setParam("q", v || null);
+  const coverage = (searchParams.get("cov") ?? "any") as RequirementCoverage;
+  const setCoverage = (v: RequirementCoverage) =>
+    setParam("cov", v === "any" ? null : v);
+  const pageSize = Number(searchParams.get("size")) || 50;
+  const propertyFilters: Record<string, string> = {};
+  searchParams.forEach((value, name) => {
+    if (name.startsWith("p.")) propertyFilters[name.slice(2)] = value;
+  });
+  const setPropertyFilters = (
+    update: (cur: Record<string, string>) => Record<string, string>,
+  ) =>
+    setSearchParams(
+      (cur) => {
+        const next = new URLSearchParams(cur);
+        for (const name of [...next.keys()])
+          if (name.startsWith("p.")) next.delete(name);
+        for (const [n, v] of Object.entries(update(propertyFilters)))
+          next.set(`p.${n}`, v);
+        return next;
+      },
+      { replace: true },
+    );
+  const [checked, setChecked] = useState<Set<string>>(new Set());
   const [hiddenColumns, setHiddenColumns] = useState<string[]>([]);
   const [sort, setSort] = useState<{
     field: string;
     dir: "asc" | "desc";
   } | null>(null);
-  const [coverage, setCoverage] = useState<RequirementCoverage>("any");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<string | null>(null);
   const [importOpened, setImportOpened] = useState(false);
@@ -86,8 +116,8 @@ export default function RequirementList({
   const { data, isLoading } = useRequirementsQuery({
     spaceId: space.id,
     filter,
-    limit: PAGE_SIZE,
-    offset: (page - 1) * PAGE_SIZE,
+    limit: pageSize,
+    offset: (page - 1) * pageSize,
   });
 
   const schema = settings?.propertySchema ?? [];
@@ -153,16 +183,40 @@ export default function RequirementList({
   );
 
   const resetFilters = () => {
-    setText("");
-    setPropertyFilters({});
-    setCoverage("any");
+    setSearchParams(
+      (cur) => {
+        const next = new URLSearchParams();
+        const tab = cur.get("tab");
+        if (tab) next.set("tab", tab);
+        return next;
+      },
+      { replace: true },
+    );
     setPage(1);
   };
-  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / PAGE_SIZE));
 
-  const handleExport = async (format: "xlsx" | "csv") => {
+  const allChecked = items.length > 0 && items.every((r) => checked.has(r.key));
+  const toggleAll = () =>
+    setChecked(allChecked ? new Set() : new Set(items.map((r) => r.key)));
+  const toggleOne = (key: string) =>
+    setChecked((cur) => {
+      const next = new Set(cur);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / pageSize));
+
+  const handleExport = async (
+    format: "xlsx" | "csv",
+    keys?: string[],
+  ) => {
     try {
-      await exportRequirements({ spaceId: space.id, format, filter });
+      await exportRequirements({
+        spaceId: space.id,
+        format,
+        filter: keys ? { keys } : filter,
+      });
     } catch (err) {
       notifications.show({
         message: t("Export failed"),
@@ -339,13 +393,59 @@ export default function RequirementList({
         </Text>
       )}
 
+      {checked.size > 0 && (
+        <Group
+          gap="xs"
+          p="xs"
+          style={{
+            background: "var(--mantine-color-blue-light)",
+            borderRadius: "var(--mantine-radius-sm)",
+          }}
+        >
+          <Text size="sm" fw={600} mr="xs">
+            {t("{{count}} selected", { count: checked.size })}
+          </Text>
+          <CopyButton value={[...checked].join(", ")}>
+            {({ copied, copy }) => (
+              <Button size="compact-sm" variant="default" onClick={copy}>
+                {copied ? t("Copied") : t("Copy keys")}
+              </Button>
+            )}
+          </CopyButton>
+          <Button
+            size="compact-sm"
+            variant="default"
+            onClick={() => handleExport("xlsx", [...checked])}
+          >
+            {t("Export selected")}
+          </Button>
+          <Button
+            size="compact-sm"
+            variant="subtle"
+            color="gray"
+            onClick={() => setChecked(new Set())}
+          >
+            {t("Clear selection")}
+          </Button>
+        </Group>
+      )}
+
       <Table.ScrollContainer minWidth={700}>
         <Table highlightOnHover verticalSpacing="xs">
           <Table.Thead>
             <Table.Tr>
-              <Table.Th w={28} />
+              <Table.Th w={36}>
+                <Checkbox
+                  size="xs"
+                  aria-label={t("Select all")}
+                  checked={allChecked}
+                  indeterminate={checked.size > 0 && !allChecked}
+                  onChange={toggleAll}
+                />
+              </Table.Th>
               {sortableHead("key", t("Key"), 130)}
               {sortableHead("title", t("Title"))}
+              <Table.Th w={120}>{t("Status")}</Table.Th>
               {columns.map((c) => sortableHead(c, c))}
               <Table.Th w={120}>{t("Depends on")}</Table.Th>
               {sortableHead("references", t("References"), 110)}
@@ -361,48 +461,39 @@ export default function RequirementList({
                   onClick={() => setSelected(r.key)}
                 >
                   <Table.Td>
-                    <Tooltip
-                      label={
-                        r.isConflict
-                          ? t("Duplicate key")
-                          : r.referenceCount
-                            ? t("Covered")
-                            : t("Not covered")
-                      }
-                      withinPortal
-                    >
-                      {r.isConflict ? (
-                        <IconAlertTriangle
-                          size={16}
-                          color="var(--mantine-color-red-6)"
-                        />
-                      ) : r.referenceCount ? (
-                        <IconCircleCheck
-                          size={16}
-                          color="var(--mantine-color-green-6)"
-                        />
-                      ) : (
-                        <IconCircleDashed
-                          size={16}
-                          color="var(--mantine-color-orange-6)"
-                        />
-                      )}
-                    </Tooltip>
+                    <Checkbox
+                      size="xs"
+                      aria-label={r.key}
+                      checked={checked.has(r.key)}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={() => toggleOne(r.key)}
+                    />
                   </Table.Td>
                   <Table.Td>
-                    <Badge
-                      variant="light"
-                      radius="sm"
-                      ff="monospace"
-                      color={r.isConflict ? "red" : "blue"}
-                    >
-                      {r.key}
-                    </Badge>
+                    <RequirementKey value={r.key} conflict={r.isConflict} />
                   </Table.Td>
                   <Table.Td>
                     <Text size="sm" lineClamp={2}>
                       {r.title || t("Untitled")}
                     </Text>
+                  </Table.Td>
+                  <Table.Td>
+                    <StatusLozenge
+                      kind={
+                        r.isConflict
+                          ? "duplicate"
+                          : r.referenceCount
+                            ? "covered"
+                            : "uncovered"
+                      }
+                      label={
+                        r.isConflict
+                          ? t("Duplicate")
+                          : r.referenceCount
+                            ? t("Covered")
+                            : t("Not covered")
+                      }
+                    />
                   </Table.Td>
                   {columns.map((c) => (
                     <Table.Td key={c}>
@@ -412,16 +503,7 @@ export default function RequirementList({
                   <Table.Td>
                     <Group gap={4}>
                       {r.dependsOn?.slice(0, 3).map((k) => (
-                        <Badge
-                          key={k}
-                          variant="outline"
-                          color="gray"
-                          size="xs"
-                          radius="sm"
-                          ff="monospace"
-                        >
-                          {k}
-                        </Badge>
+                        <RequirementKey key={k} value={k} size="xs" />
                       ))}
                       {(r.dependsOn?.length ?? 0) > 3 && (
                         <Text size="xs" c="dimmed">
@@ -455,22 +537,38 @@ export default function RequirementList({
                 </Table.Tr>
               ))
             ) : (
-              <NoTableResults colSpan={6 + columns.length} />
+              <NoTableResults colSpan={8 + columns.length} />
             )}
           </Table.Tbody>
         </Table>
       </Table.ScrollContainer>
 
-      {!isLoading && totalPages > 1 && (
-        <Group justify="flex-end">
+      <Group justify="space-between">
+        <Group gap="xs">
+          <Text size="sm" c="dimmed">
+            {t("Rows per page")}
+          </Text>
+          <Select
+            size="xs"
+            w={80}
+            allowDeselect={false}
+            data={PAGE_SIZES}
+            value={String(pageSize)}
+            onChange={(v) => {
+              setParam("size", v && v !== "50" ? v : null);
+              setPage(1);
+            }}
+          />
+        </Group>
+        {!isLoading && totalPages > 1 && (
           <Pagination
             size="sm"
             total={totalPages}
             value={page}
             onChange={setPage}
           />
-        </Group>
-      )}
+        )}
+      </Group>
 
       {selected && (
         <RequirementDetailDrawer
