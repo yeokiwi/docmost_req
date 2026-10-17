@@ -5,6 +5,7 @@ import { StorageModule } from '../storage/storage.module';
 import { FileImportTaskService } from './services/file-import-task.service';
 import { FileTaskProcessor } from './processors/file-task.processor';
 import { ImportAttachmentService } from './services/import-attachment.service';
+import { DocumentImportService } from './services/document-import.service';
 import { FileTaskController } from './file-task.controller';
 import { PageModule } from '../../core/page/page.module';
 
@@ -14,6 +15,7 @@ import { PageModule } from '../../core/page/page.module';
     FileImportTaskService,
     FileTaskProcessor,
     ImportAttachmentService,
+    DocumentImportService,
   ],
   exports: [ImportService, ImportAttachmentService],
   controllers: [ImportController, FileTaskController],
