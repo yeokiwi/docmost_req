@@ -1,6 +1,7 @@
 import { NodeViewProps, NodeViewWrapper } from "@tiptap/react";
 import {
   ActionIcon,
+  Alert,
   Card,
   LoadingOverlay,
   Modal,
@@ -36,12 +37,16 @@ export default function DrawioView(props: NodeViewProps) {
   const isDirtyRef = useRef(false);
   const isSavingRef = useRef(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const loadedRef = useRef(false);
 
   const handleOpen = async () => {
     if (!editor.isEditable) {
       return;
     }
     isDirtyRef.current = false;
+    loadedRef.current = false;
+    setLoadFailed(false);
     open();
   };
 
@@ -109,6 +114,16 @@ export default function DrawioView(props: NodeViewProps) {
     });
   }, [close, t]);
 
+  // the editor is served by an external site; when it can't be reached the
+  // iframe stays blank, so tell the user what to check instead
+  useEffect(() => {
+    if (!opened) return;
+    const timer = setTimeout(() => {
+      if (!loadedRef.current) setLoadFailed(true);
+    }, 15_000);
+    return () => clearTimeout(timer);
+  }, [opened]);
+
   useEffect(() => {
     if (!opened) return;
 
@@ -148,12 +163,33 @@ export default function DrawioView(props: NodeViewProps) {
         <Modal.Content style={{ overflow: "hidden" }}>
           <Modal.Body pos="relative">
             <LoadingOverlay visible={isSaving} />
+            {loadFailed && (
+              <Alert
+                color="red"
+                pos="absolute"
+                top={12}
+                left="50%"
+                style={{ transform: "translateX(-50%)", zIndex: 10 }}
+                withCloseButton
+                onClose={() => setLoadFailed(false)}
+                title={t("The diagram editor could not be loaded")}
+              >
+                {t(
+                  "Check that {{url}} is reachable from your browser. Administrators can host draw.io internally and set DRAWIO_URL.",
+                  { url: getDrawioUrl() },
+                )}
+              </Alert>
+            )}
             <div style={{ height: "100vh" }}>
               <DrawIoEmbed
                 ref={drawioRef}
                 xml={initialXML}
                 baseUrl={getDrawioUrl()}
                 autosave
+                onLoad={() => {
+                  loadedRef.current = true;
+                  setLoadFailed(false);
+                }}
                 urlParameters={{
                   ui: computedColorScheme === "light" ? "kennedy" : "dark",
                   spin: true,

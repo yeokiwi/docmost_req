@@ -89,7 +89,8 @@ export function getFileImportSizeLimit() {
 }
 
 export function getDrawioUrl() {
-  return getConfigValue("DRAWIO_URL", "https://embed.diagrams.net");
+  // an empty DRAWIO_URL (e.g. copied from .env.example) must fall back to the default
+  return getConfigValue("DRAWIO_URL")?.trim() || "https://embed.diagrams.net";
 }
 
 export function getBillingTrialDays() {

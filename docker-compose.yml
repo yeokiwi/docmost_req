@@ -15,11 +15,23 @@ services:
       APP_SECRET: '${APP_SECRET:?Set APP_SECRET in .env - generate one with: openssl rand -hex 32}'
       DATABASE_URL: 'postgresql://docmost:STRONG_DB_PASSWORD@db:5432/docmost'
       REDIS_URL: 'redis://redis:6379'
+      # draw.io editor URL as seen by the browser. Leave empty to use https://embed.diagrams.net,
+      # or run the optional drawio service below (docker compose --profile drawio up) and set
+      # DRAWIO_URL=http://localhost:8080 in .env when the browser has no internet access.
+      DRAWIO_URL: '${DRAWIO_URL:-}'
     ports:
       - "3000:3000"
     restart: unless-stopped
     volumes:
       - docmost:/app/data/storage
+
+  # optional self-hosted draw.io for networks that cannot reach embed.diagrams.net
+  drawio:
+    image: jgraph/drawio:latest
+    profiles: ["drawio"]
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
 
   db:
     image: postgres:18
