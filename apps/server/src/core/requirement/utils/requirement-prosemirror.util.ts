@@ -1,5 +1,6 @@
 export const REQUIREMENT_TYPE = 'requirement';
 export const REQUIREMENT_REF_TYPE = 'requirementRef';
+export const REQUIREMENT_PROPERTY_TYPE = 'requirementProperty';
 
 export type RequirementSnapshot = {
   nodeId: string;
@@ -25,7 +26,39 @@ export type RequirementRefSnapshot = {
 type TableContext = {
   relation: string | null;
   rowKey: string | null;
+  // the column is marked "ignore for dependencies"
+  ignoreDependencies?: boolean;
 };
+
+type ColumnMeta = {
+  name: string;
+  ignoreProperties: boolean;
+  ignoreDependencies: boolean;
+};
+
+function findNode(node: any, type: string): any | null {
+  if (!node || typeof node !== 'object') return null;
+  if (node.type === type) return node;
+  if (Array.isArray(node.content)) {
+    for (const child of node.content) {
+      const found = findNode(child, type);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/** Column name and flags from a heading cell; a property marker overrides the text. */
+function columnMeta(cell: any): ColumnMeta {
+  const marker = findNode(cell, REQUIREMENT_PROPERTY_TYPE);
+  const markerName = String(marker?.attrs?.name ?? '').trim();
+  const text = pmNodesToText(cell?.content).replace(/\s+/g, ' ').trim();
+  return {
+    name: markerName || text,
+    ignoreProperties: !!marker?.attrs?.ignoreProperties,
+    ignoreDependencies: !!marker?.attrs?.ignoreDependencies,
+  };
+}
 
 export const REQUIREMENT_KEY_REGEX = /^[A-Z][A-Z0-9_]{1,15}-\d+$/;
 
@@ -154,16 +187,32 @@ export function collectRequirementsFromPmJson(doc: unknown): {
   const seenRefNodes = new Set<string>();
   let refFallbackIndex = 0;
 
+  // properties gathered from table columns and property markers, per key
+  const columnProps = new Map<string, Record<string, string>>();
+  const markerProps = new Map<string, Record<string, string>>();
+  const documentProps: Record<string, string> = {};
+
+  const addProp = (
+    target: Map<string, Record<string, string>>,
+    key: string,
+    name: string,
+    value: string,
+  ) => {
+    const props = target.get(key) ?? {};
+    if (!(name in props)) props[name] = value;
+    target.set(key, props);
+  };
+
   const visitTable = (table: any, enclosingKey: string | null): void => {
     const rows: any[] = Array.isArray(table.content) ? table.content : [];
     const headerRow =
       rows.length > 0 && !containsRequirement(rows[0]) ? rows[0] : null;
-    const headers: string[] = [];
+    const columns: ColumnMeta[] = [];
     if (headerRow) {
       for (const cell of headerRow.content ?? []) {
         const span = Math.max(1, Number(cell?.attrs?.colspan) || 1);
-        const text = pmNodesToText(cell?.content).replace(/\s+/g, ' ').trim();
-        for (let i = 0; i < span; i++) headers.push(text);
+        const meta = columnMeta(cell);
+        for (let i = 0; i < span; i++) columns.push(meta);
       }
     }
 
@@ -177,12 +226,27 @@ export function collectRequirementsFromPmJson(doc: unknown): {
       let col = 0;
       for (const cell of row?.content ?? []) {
         const span = Math.max(1, Number(cell?.attrs?.colspan) || 1);
+        const meta = columns[col];
         const ctx: TableContext = {
-          relation: headers[col] || null,
+          relation: meta?.name || null,
           rowKey,
+          ignoreDependencies: !!meta?.ignoreDependencies,
         };
         if (Array.isArray(cell?.content)) {
           for (const child of cell.content) visit(child, enclosingKey, ctx);
+        }
+
+        // every other column of the row is a property of the row's requirement;
+        // a column of links is a dependency instead
+        if (
+          rowKey &&
+          meta?.name &&
+          !meta.ignoreProperties &&
+          !containsRequirement(cell) &&
+          !findNode(cell, REQUIREMENT_REF_TYPE)
+        ) {
+          const text = pmNodesToText(cell?.content).trim();
+          if (text) addProp(columnProps, rowKey, meta.name, text);
         }
         col += span;
       }
@@ -227,9 +291,25 @@ export function collectRequirementsFromPmJson(doc: unknown): {
       return;
     }
 
+    if (node.type === REQUIREMENT_PROPERTY_TYPE) {
+      const name = String(node.attrs?.name ?? '').trim();
+      const value = String(node.attrs?.value ?? '').trim();
+      // without a value the marker only renames or ignores a column
+      if (!name || !value) return;
+      if (node.attrs?.wholeDocument) {
+        if (!(name in documentProps)) documentProps[name] = value;
+        return;
+      }
+      const target = enclosingKey ?? ctx?.rowKey ?? null;
+      if (target) addProp(markerProps, target, name, value);
+      return;
+    }
+
     if (node.type === REQUIREMENT_REF_TYPE) {
       const key = String(node.attrs?.key ?? '').trim().toUpperCase();
-      const sourceKey = enclosingKey ?? ctx?.rowKey ?? null;
+      // a column marked "ignore for dependencies" links from the page, not the row
+      const sourceKey =
+        enclosingKey ?? (ctx?.ignoreDependencies ? null : ctx?.rowKey) ?? null;
       // a requirement referencing itself is not a link
       if (!key || key === sourceKey) return;
       const nodeId =
@@ -246,7 +326,10 @@ export function collectRequirementsFromPmJson(doc: unknown): {
             ? node.attrs.spaceId
             : null,
         sourceKey,
-        relation: sourceKey ? (ctx?.relation ?? null) : null,
+        relation:
+          sourceKey && !ctx?.ignoreDependencies
+            ? (ctx?.relation ?? null)
+            : null,
       });
       return;
     }
@@ -257,6 +340,17 @@ export function collectRequirementsFromPmJson(doc: unknown): {
   };
 
   visit(doc, null, undefined);
+
+  // precedence: the block's own properties, then markers inside it, then its
+  // table columns, then page-wide markers
+  for (const r of requirements) {
+    r.properties = {
+      ...documentProps,
+      ...(columnProps.get(r.key) ?? {}),
+      ...(markerProps.get(r.key) ?? {}),
+      ...r.properties,
+    };
+  }
   return { requirements, refs };
 }
 

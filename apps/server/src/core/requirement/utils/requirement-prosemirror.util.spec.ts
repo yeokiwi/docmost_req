@@ -228,6 +228,90 @@ describe('requirement links in tables', () => {
   });
 });
 
+describe('requirement properties', () => {
+  const cell = (type: string, content: any[]) => ({ type, content });
+  const row = (...cells: any[]) => ({ type: 'tableRow', content: cells });
+  const table = (...rows: any[]) => ({ type: 'table', content: rows });
+  const marker = (attrs: Record<string, any>) => ({
+    type: 'requirementProperty',
+    attrs: {
+      name: '',
+      value: '',
+      wholeDocument: false,
+      ignoreProperties: false,
+      ignoreDependencies: false,
+      ...attrs,
+    },
+  });
+  const pWith = (...content: any[]) => ({ type: 'paragraph', content });
+
+  const spec = (headers: any[], cells: any[]) => ({
+    type: 'doc',
+    content: [
+      table(
+        row(...headers.map((h) => cell('tableHeader', [h]))),
+        row(cell('tableCell', [req('FN-01', 'a', [p('')])]), ...cells),
+      ),
+    ],
+  });
+
+  it('turns each column into a property named after its title', () => {
+    const doc = spec(
+      [p('Requirement'), p('Priority'), p('Component')],
+      [cell('tableCell', [p('High')]), cell('tableCell', [p('Component A')])],
+    );
+    const { requirements } = collectRequirementsFromPmJson(doc);
+    expect(requirements[0].properties).toEqual({
+      Priority: 'High',
+      Component: 'Component A',
+    });
+  });
+
+  it('keeps a column of links as a dependency, not a property', () => {
+    const doc = spec(
+      [p('Requirement'), p('Relates')],
+      [cell('tableCell', [pWith(ref('BR-01', 'r1'))])],
+    );
+    const { requirements, refs } = collectRequirementsFromPmJson(doc);
+    expect(requirements[0].properties).toEqual({});
+    expect(refs[0]).toMatchObject({ sourceKey: 'FN-01', relation: 'Relates' });
+  });
+
+  it('uses a heading marker name and its ignore flags', () => {
+    const doc = spec(
+      [
+        p('Requirement'),
+        pWith({ type: 'text', text: 'Priority (H/M/L, see guide)' }, marker({ name: 'Priority' })),
+        pWith({ type: 'text', text: 'Notes' }, marker({ ignoreProperties: true })),
+        pWith({ type: 'text', text: 'See also' }, marker({ ignoreDependencies: true })),
+      ],
+      [
+        cell('tableCell', [p('High')]),
+        cell('tableCell', [p('internal note')]),
+        cell('tableCell', [pWith(ref('BR-02', 'r2'))]),
+      ],
+    );
+    const { requirements, refs } = collectRequirementsFromPmJson(doc);
+    expect(requirements[0].properties).toEqual({ Priority: 'High' });
+    expect(refs[0]).toMatchObject({ key: 'BR-02', sourceKey: null, relation: null });
+  });
+
+  it('applies value markers to their requirement or to the whole page', () => {
+    const doc = {
+      type: 'doc',
+      content: [
+        pWith(marker({ name: 'Release', value: '1.0', wholeDocument: true })),
+        req('FN-01', 'a', [pWith(marker({ name: 'Owner', value: 'Ann' }))]),
+        req('FN-02', 'b', [p('x')], { properties: { Release: '2.0' } }),
+      ],
+    };
+    const { requirements } = collectRequirementsFromPmJson(doc);
+    expect(requirements[0].properties).toEqual({ Release: '1.0', Owner: 'Ann' });
+    // the block's own value wins over the page-wide one
+    expect(requirements[1].properties).toEqual({ Release: '2.0' });
+  });
+});
+
 describe('pmNodesToText', () => {
   it('renders inline atoms and separates blocks', () => {
     const text = pmNodesToText([

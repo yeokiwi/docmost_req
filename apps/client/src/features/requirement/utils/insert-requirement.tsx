@@ -9,6 +9,7 @@ import {
   getRequirementSettings,
 } from "../services/requirement-service";
 import { convertSelectedKeys, openTransformDialog } from "./convert-keys";
+import InsertRequirementDialog from "../components/insert-requirement-dialog";
 import BulkInsertRequirementsForm, {
   buildBulkKeys,
 } from "../components/bulk-insert-requirements-form";
@@ -41,9 +42,51 @@ export function insertRequirementFromShortcut(editor: Editor): boolean {
   if (bulkTargets(editor).length > 0) {
     openBulkInsertDialog(editor);
   } else {
-    void insertRequirementBlock(editor);
+    void openInsertDialog(editor);
   }
   return true;
+}
+
+/** Ask for a key: a new one defines a requirement, an existing one links to it. */
+async function openInsertDialog(editor: Editor) {
+  const spaceId = await resolveEditorSpaceId(editor).catch(() => undefined);
+  let nextKey: string | null = null;
+  try {
+    const settings = spaceId ? await getRequirementSettings(spaceId) : null;
+    if (settings) {
+      nextKey = `${settings.keyPrefix}-${String(settings.nextSeq).padStart(settings.keyPadding, "0")}`;
+    }
+  } catch {
+    // no prefix configured: the user types a key
+  }
+  // remember where the cursor was; the dialog takes focus
+  const { from, to } = editor.state.selection;
+
+  const id = modals.open({
+    title: i18n.t("Insert requirement"),
+    centered: true,
+    children: (
+      <InsertRequirementDialog
+        spaceId={spaceId}
+        nextKey={nextKey}
+        onSelect={(choice) => {
+          modals.close(id);
+          editor.chain().focus().setTextSelection({ from, to }).run();
+          if (choice.kind === "next") {
+            void insertRequirementBlock(editor);
+          } else if (choice.kind === "define") {
+            editor.chain().focus().setRequirement({ key: choice.key, title: "" }).run();
+          } else {
+            editor
+              .chain()
+              .focus()
+              .setRequirementRef({ key: choice.key, spaceId: spaceId ?? null })
+              .run();
+          }
+        }}
+      />
+    ),
+  });
 }
 
 type BulkTarget = { from: number; to: number };

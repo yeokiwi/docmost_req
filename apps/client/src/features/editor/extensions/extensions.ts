@@ -66,6 +66,7 @@ import {
   Requirement,
   RequirementRef,
   RequirementReport,
+  RequirementProperty,
   TransclusionSource,
   TransclusionReference,
   TableView,
@@ -99,6 +100,7 @@ import StatusView from "@/features/editor/components/status/status-view.tsx";
 import RequirementView from "@/features/editor/components/requirement/requirement-view.tsx";
 import RequirementRefView from "@/features/editor/components/requirement/requirement-ref-view.tsx";
 import RequirementReportView from "@/features/editor/components/requirement/requirement-report-view.tsx";
+import RequirementPropertyView from "@/features/editor/components/requirement/requirement-property-view.tsx";
 import VideoView from "@/features/editor/components/video/video-view.tsx";
 import AudioView from "@/features/editor/components/audio/audio-view.tsx";
 import AttachmentView from "@/features/editor/components/attachment/attachment-view.tsx";
@@ -443,6 +445,9 @@ export const mainExtensions = [
   }),
   RequirementReport.configure({
     view: RequirementReportView,
+  }),
+  RequirementProperty.configure({
+    view: RequirementPropertyView,
   }),
   TransclusionSource.configure({
     view: TransclusionView,

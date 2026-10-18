@@ -579,6 +579,21 @@ const CommandGroups: SlashMenuGroupedItemsType = {
       },
     },
     {
+      title: "Requirement property",
+      description:
+        "Rename or ignore a table column, or add a property to requirements.",
+      searchTerms: ["requirement", "property", "column", "attribute", "ignore"],
+      icon: IconTag,
+      command: ({ editor, range }: CommandProps) => {
+        editor
+          .chain()
+          .focus()
+          .deleteRange(range)
+          .setRequirementProperty({ name: "" })
+          .run();
+      },
+    },
+    {
       title: "Requirements report",
       description: "Insert a live table of requirements.",
       searchTerms: ["requirement", "report", "table", "query", "list"],

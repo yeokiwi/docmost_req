@@ -26,6 +26,7 @@ import {
   IconSortAscending,
   IconSortDescending,
   IconUpload,
+  IconX,
 } from "@tabler/icons-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -121,7 +122,24 @@ export default function RequirementList({
   });
 
   const schema = settings?.propertySchema ?? [];
-  const columns = schema.map((d) => d.name).filter((n) => !hiddenColumns.includes(n));
+  // properties that come from table columns are not in the schema; show them too
+  const discovered = useMemo(() => {
+    const known = new Set(schema.map((d) => d.name));
+    const names = new Set<string>();
+    for (const r of data?.items ?? []) {
+      for (const name of Object.keys(r.properties ?? {})) {
+        if (!known.has(name)) names.add(name);
+      }
+    }
+    return [...names].sort();
+  }, [data, schema]);
+  const columns = [...schema.map((d) => d.name), ...discovered].filter(
+    (n) => !hiddenColumns.includes(n),
+  );
+  // filters set from a link (e.g. a property in the requirement panel) with no input of their own
+  const linkFilters = Object.entries(propertyFilters).filter(
+    ([name]) => !schema.some((d) => d.name === name),
+  );
   const activeFilterCount =
     Object.keys(propertyFilters).length +
     (text ? 1 : 0) +
@@ -308,7 +326,7 @@ export default function RequirementList({
         </Group>
 
         <Group gap="xs">
-          {schema.length > 0 && (
+          {schema.length + discovered.length > 0 && (
             <Menu position="bottom-end" withinPortal closeOnItemClick={false}>
               <Menu.Target>
                 <Button
@@ -321,17 +339,17 @@ export default function RequirementList({
               </Menu.Target>
               <Menu.Dropdown p="xs">
                 <Stack gap="xs">
-                  {schema.map((d) => (
+                  {[...schema.map((d) => d.name), ...discovered].map((name) => (
                     <Checkbox
-                      key={d.name}
+                      key={name}
                       size="xs"
-                      label={d.name}
-                      checked={!hiddenColumns.includes(d.name)}
+                      label={name}
+                      checked={!hiddenColumns.includes(name)}
                       onChange={(e) =>
                         setHiddenColumns((cur) =>
                           e.currentTarget.checked
-                            ? cur.filter((n) => n !== d.name)
-                            : [...cur, d.name],
+                            ? cur.filter((n) => n !== name)
+                            : [...cur, name],
                         )
                       }
                     />
@@ -377,6 +395,36 @@ export default function RequirementList({
           </Menu>
         </Group>
       </Group>
+
+      {linkFilters.length > 0 && (
+        <Group gap="xs">
+          {linkFilters.map(([name, value]) => (
+            <Badge
+              key={name}
+              variant="light"
+              radius="sm"
+              tt="none"
+              rightSection={
+                <IconX
+                  size={12}
+                  style={{ cursor: "pointer" }}
+                  aria-label={t("Remove filter")}
+                  onClick={() => {
+                    setPropertyFilters((cur) => {
+                      const next = { ...cur };
+                      delete next[name];
+                      return next;
+                    });
+                    setPage(1);
+                  }}
+                />
+              }
+            >
+              {name} = {value}
+            </Badge>
+          ))}
+        </Group>
+      )}
 
       {data && (
         <Text size="xs" c="dimmed">

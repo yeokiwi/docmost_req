@@ -106,3 +106,34 @@
     var(--mantine-color-dark-5)
   );
 }
+
+.propertyMarker {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 3px;
+  padding: 0 6px;
+  font-size: 0.8em;
+  line-height: 1.6;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  border: 1px dashed
+    light-dark(var(--mantine-color-gray-5), var(--mantine-color-dark-3));
+  color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-1));
+}
+
+/* a requirement reached from a reference link */
+.blockHighlight {
+  outline: 2px solid var(--mantine-color-blue-5);
+  background-color: light-dark(
+    var(--mantine-color-blue-0),
+    rgba(34, 139, 230, 0.15)
+  );
+  transition: background-color 0.6s ease;
+}
+
+/* references carry an arrow, definitions don't */
+.ref:not(.refEmpty)::before {
+  content: "› ";
+}

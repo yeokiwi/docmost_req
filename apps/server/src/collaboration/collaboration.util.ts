@@ -44,6 +44,7 @@ import {
   Requirement,
   RequirementRef,
   RequirementReport,
+  RequirementProperty,
   addUniqueIdsToDoc,
   htmlToMarkdown,
   TransclusionSource,
@@ -154,6 +155,7 @@ export const tiptapExtensions = [
   Requirement,
   RequirementRef,
   RequirementReport,
+  RequirementProperty,
 ] as any;
 
 export function jsonToHtml(tiptapJson: any) {

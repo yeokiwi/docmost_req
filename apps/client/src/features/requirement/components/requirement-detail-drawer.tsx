@@ -186,7 +186,19 @@ export default function RequirementDetailDrawer({
                     <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
                       {name}
                     </Text>
-                    <RequirementPropertyBadge value={value} />
+                    {space && value.length < 80 ? (
+                      <Tooltip label={t("Find requirements with this value")}>
+                        <Anchor
+                          component={Link}
+                          onClick={onClose}
+                          to={`/s/${space.slug}/requirements?tab=list&p.${encodeURIComponent(name)}=${encodeURIComponent(value)}`}
+                        >
+                          <RequirementPropertyBadge value={value} />
+                        </Anchor>
+                      </Tooltip>
+                    ) : (
+                      <RequirementPropertyBadge value={value} />
+                    )}
                   </div>
                 ))}
               </Group>

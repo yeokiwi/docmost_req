@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   NodeViewContent,
   NodeViewProps,
@@ -59,6 +60,27 @@ export default function RequirementView(props: NodeViewProps) {
   );
   const isConflict = !!nodeId && !!conflictNodeIds?.includes(nodeId);
 
+  const [searchParams] = useSearchParams();
+  const [highlighted, setHighlighted] = useState(false);
+  const targetKey = searchParams.get("requirement");
+
+  useEffect(() => {
+    if (!key || !targetKey || targetKey.toUpperCase() !== key.toUpperCase()) return;
+    // wait for layout so the scroll lands on the block
+    const timer = setTimeout(() => {
+      const el = document.querySelector(
+        `[data-requirement-key="${CSS.escape(key)}"]`,
+      );
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      setHighlighted(true);
+    }, 300);
+    const clear = setTimeout(() => setHighlighted(false), 4300);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(clear);
+    };
+  }, [key, targetKey]);
+
   const [titleValue, setTitleValue] = useState(title ?? "");
   const [drawerOpened, setDrawerOpened] = useState(false);
 
@@ -77,7 +99,11 @@ export default function RequirementView(props: NodeViewProps) {
 
   return (
     <NodeViewWrapper
-      className={clsx(classes.block, isConflict && classes.blockConflict)}
+      className={clsx(
+        classes.block,
+        isConflict && classes.blockConflict,
+        highlighted && classes.blockHighlight,
+      )}
       data-requirement-key={key}
     >
       <div className={classes.header} contentEditable={false}>

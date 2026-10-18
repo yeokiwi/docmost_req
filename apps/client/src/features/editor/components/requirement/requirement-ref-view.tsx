@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { NodeViewProps, NodeViewWrapper } from "@tiptap/react";
 import {
   Badge,
+  Button,
   Group,
   HoverCard,
   Loader,
@@ -25,6 +27,9 @@ import { getEditorPageId } from "@/features/requirement/utils/editor-space";
 import RequirementDetailDrawer from "@/features/requirement/components/requirement-detail-drawer";
 import { useSpaceQuery } from "@/features/space/queries/space-query";
 import { buildRequirementPath } from "@/features/requirement/utils/requirement-url";
+import { getRequirementInfo } from "@/features/requirement/services/requirement-service";
+import { getSpaceById } from "@/features/space/services/space-service";
+import { buildPageUrl } from "@/features/page/page.utils";
 import { IRequirement } from "@/features/requirement/types/requirement.types";
 
 export default function RequirementRefView(props: NodeViewProps) {
@@ -76,9 +81,26 @@ export default function RequirementRefView(props: NodeViewProps) {
     }
   };
 
+  const navigate = useNavigate();
+
+  // a reference leads to its definition: open that page, scrolled to and
+  // highlighting the requirement; fall back to the details panel
+  const goToDefinition = async () => {
+    try {
+      const detail = await getRequirementInfo({ spaceId: spaceId ?? undefined, key });
+      const target = detail.page;
+      const targetSpace =
+        target.spaceId === refSpace?.id ? refSpace : await getSpaceById(target.spaceId);
+      const url = buildPageUrl(targetSpace.slug, target.slugId, target.title ?? undefined);
+      navigate(`${url}?requirement=${encodeURIComponent(detail.requirement.key)}`);
+    } catch {
+      setDrawerOpened(true);
+    }
+  };
+
   const open = () => {
     if (!key && isEditable) setPickerOpened(true);
-    else if (key) setDrawerOpened(true);
+    else if (key) void goToDefinition();
   };
 
   // a real link, so the reference can be opened in a new tab or copied
@@ -147,6 +169,14 @@ export default function RequirementRefView(props: NodeViewProps) {
                     page: info.page?.title || t("Untitled"),
                   })}
                 </Text>
+                <Group gap="xs" mt={4}>
+                  <Button size="compact-xs" variant="light" onClick={() => void goToDefinition()}>
+                    {t("Go to definition")}
+                  </Button>
+                  <Button size="compact-xs" variant="default" onClick={() => setDrawerOpened(true)}>
+                    {t("Details")}
+                  </Button>
+                </Group>
               </Stack>
             )}
           </HoverCard.Dropdown>
