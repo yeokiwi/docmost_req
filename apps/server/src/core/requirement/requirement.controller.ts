@@ -128,8 +128,11 @@ export class RequirementController {
       SpaceCaslAction.Edit,
       SpaceCaslSubject.Page,
     );
-    const [key] = await this.settingsService.allocateKeys(dto.spaceId, 1);
-    return { key };
+    const keys = await this.settingsService.allocateKeys(
+      dto.spaceId,
+      dto.count ?? 1,
+    );
+    return { key: keys[0], keys };
   }
 
   @HttpCode(HttpStatus.OK)

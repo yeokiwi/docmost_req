@@ -1,4 +1,5 @@
-import { markInputRule, type Editor } from "@tiptap/core";
+import { Extension, markInputRule, type Editor } from "@tiptap/core";
+import { insertRequirementFromShortcut } from "@/features/requirement/utils/insert-requirement";
 import { StarterKit } from "@tiptap/starter-kit";
 import { TiptapDocument } from "@/features/editor/extensions/document";
 import { Code } from "@tiptap/extension-code";
@@ -426,6 +427,16 @@ export const mainExtensions = [
   }),
   Requirement.configure({
     view: RequirementView,
+  }),
+  // Alt+Shift+R inserts a requirement; with table cells selected it creates one per cell
+  Extension.create({
+    name: "requirementShortcut",
+    addKeyboardShortcuts() {
+      return {
+        "Alt-Shift-r": ({ editor }) => insertRequirementFromShortcut(editor),
+        "Alt-Shift-R": ({ editor }) => insertRequirementFromShortcut(editor),
+      };
+    },
   }),
   RequirementRef.configure({
     view: RequirementRefView,

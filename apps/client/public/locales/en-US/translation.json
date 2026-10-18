@@ -1747,5 +1747,18 @@
   "Dependencies": "Dependencies",
   "Trace": "Trace",
   "Referenced in pages": "Referenced in pages",
-  "Open requirement {{key}}": "Open requirement {{key}}"
+  "Open requirement {{key}}": "Open requirement {{key}}",
+  "Insert requirements": "Insert requirements",
+  "Insert": "Insert",
+  "{{count}} requirements inserted": "{{count}} requirements inserted",
+  "Original definition": "Original definition",
+  "Insert the requirement macro": "Insert the requirement macro",
+  "This will create one requirement for each of the {{count}} selected lines.": "This will create one requirement for each of the {{count}} selected lines.",
+  "Prefix": "Prefix",
+  "Mandatory. No / or \\ allowed.": "Mandatory. No / or \\ allowed.",
+  "Enter a prefix": "Enter a prefix",
+  "A key cannot contain / or \\": "A key cannot contain / or \\",
+  "First number": "First number",
+  "Use leading zeros to keep keys sorted.": "Use leading zeros to keep keys sorted.",
+  "Enter a number": "Enter a number"
 }

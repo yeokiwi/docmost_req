@@ -71,6 +71,13 @@ export class UpdateRequirementSettingsDto {
 export class AllocateKeyDto {
   @IsUUID()
   spaceId: string;
+
+  // number of consecutive keys to allocate (bulk insert); defaults to 1
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(200)
+  count?: number;
 }
 
 export class RequirementFilterDto {

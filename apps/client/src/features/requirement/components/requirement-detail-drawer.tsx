@@ -100,6 +100,11 @@ export default function RequirementDetailDrawer({
               )}
             </CopyButton>
           )}
+          {requirement && !requirement.isConflict && (
+            <Badge color="green" variant="light" radius="sm" size="sm">
+              {t("Original definition")}
+            </Badge>
+          )}
           {requirement?.isConflict && (
             <Badge color="red" variant="light" radius="sm">
               {t("Duplicate key")}

@@ -45,6 +45,17 @@ export async function allocateRequirementKey(
   return req.data.key;
 }
 
+export async function allocateRequirementKeys(
+  spaceId: string,
+  count: number,
+): Promise<string[]> {
+  const req = await api.post<{ keys: string[] }>(
+    "/requirements/allocate-key",
+    { spaceId, count },
+  );
+  return req.data.keys;
+}
+
 export async function listRequirements(params: {
   spaceId: string;
   filter?: IRequirementFilter;
