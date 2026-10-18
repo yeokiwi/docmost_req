@@ -90,7 +90,15 @@ export interface ITraceabilityMatrix {
   rows: ITraceabilityItem[];
   columns: ITraceabilityItem[];
   cells: Array<[string, string]>;
+  pageRefs: ITraceabilityPageRef[];
   truncated: boolean;
+}
+
+export interface ITraceabilityPageRef {
+  key: string;
+  pageId: string;
+  pageSlugId: string;
+  pageTitle: string | null;
 }
 
 export interface IRequirementBaseline {

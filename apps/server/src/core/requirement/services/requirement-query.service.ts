@@ -304,6 +304,44 @@ export class RequirementQueryService {
       }
     }
 
+    // pages that reference a row requirement outside any requirement block
+    const rowKeys = rows.map((r) => r.key);
+    const pageRefs: Array<{
+      key: string;
+      pageId: string;
+      pageSlugId: string;
+      pageTitle: string | null;
+    }> = [];
+    if (rowKeys.length) {
+      const links = await this.db
+        .selectFrom('requirementLinks')
+        .innerJoin('pages', 'pages.id', 'requirementLinks.sourcePageId')
+        .select([
+          'requirementLinks.targetKey as key',
+          'requirementLinks.sourcePageId as pageId',
+          'pages.slugId as pageSlugId',
+          'pages.title as pageTitle',
+        ])
+        .where('requirementLinks.targetSpaceId', '=', spaceId)
+        .where('requirementLinks.targetKey', 'in', rowKeys)
+        .where('requirementLinks.sourceKey', 'is', null)
+        .where('pages.deletedAt', 'is', null)
+        .execute();
+      const accessible = new Set(
+        await this.pagePermissionRepo.filterAccessiblePageIds({
+          pageIds: [...new Set(links.map((l) => l.pageId))],
+          userId,
+        }),
+      );
+      const seen = new Set<string>();
+      for (const l of links) {
+        const id = `${l.key}:${l.pageId}`;
+        if (!accessible.has(l.pageId) || seen.has(id)) continue;
+        seen.add(id);
+        pageRefs.push(l);
+      }
+    }
+
     const pick = (r: RequirementListItem) => ({
       id: r.id,
       key: r.key,
@@ -317,6 +355,7 @@ export class RequirementQueryService {
       rows: rows.map(pick),
       columns: columns.map(pick),
       cells,
+      pageRefs,
       truncated:
         rows.length >= MAX_MATRIX_SIDE || columns.length >= MAX_MATRIX_SIDE,
     };

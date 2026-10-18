@@ -1745,5 +1745,7 @@
   "Recently updated requirements": "Recently updated requirements",
   "Updated": "Updated",
   "Dependencies": "Dependencies",
-  "Trace": "Trace"
+  "Trace": "Trace",
+  "Referenced in pages": "Referenced in pages",
+  "Open requirement {{key}}": "Open requirement {{key}}"
 }

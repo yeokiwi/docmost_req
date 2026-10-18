@@ -23,6 +23,8 @@ import {
 import { usePageQuery } from "@/features/page/queries/page-query";
 import { getEditorPageId } from "@/features/requirement/utils/editor-space";
 import RequirementDetailDrawer from "@/features/requirement/components/requirement-detail-drawer";
+import { useSpaceQuery } from "@/features/space/queries/space-query";
+import { buildRequirementPath } from "@/features/requirement/utils/requirement-url";
 import { IRequirement } from "@/features/requirement/types/requirement.types";
 
 export default function RequirementRefView(props: NodeViewProps) {
@@ -37,6 +39,10 @@ export default function RequirementRefView(props: NodeViewProps) {
   const pageId = getEditorPageId(editor);
   const { data: page } = usePageQuery({ pageId });
   const spaceId = (node.attrs.spaceId as string | null) ?? page?.spaceId;
+
+  const { data: refSpace } = useSpaceQuery(spaceId ?? "");
+  const href =
+    key && refSpace?.slug ? buildRequirementPath(refSpace.slug, key) : undefined;
 
   const [pickerOpened, setPickerOpened] = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -70,30 +76,37 @@ export default function RequirementRefView(props: NodeViewProps) {
     }
   };
 
+  const open = () => {
+    if (!key && isEditable) setPickerOpened(true);
+    else if (key) setDrawerOpened(true);
+  };
+
+  // a real link, so the reference can be opened in a new tab or copied
   const chip = (
-    <span
+    <a
       className={clsx(
         classes.ref,
         isError && classes.refMissing,
         !key && classes.refEmpty,
       )}
-      role="button"
-      tabIndex={0}
-      onClick={() => {
-        if (!key && isEditable) setPickerOpened(true);
-        else if (key) setDrawerOpened(true);
+      href={href}
+      onClick={(e) => {
+        // plain click opens the panel; modified clicks keep normal link behaviour
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
+        e.preventDefault();
+        open();
       }}
       onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
+        if (e.key === " ") {
           e.preventDefault();
-          if (!key && isEditable) setPickerOpened(true);
-          else if (key) setDrawerOpened(true);
+          open();
         }
       }}
       data-requirement-id={requirementId ?? undefined}
+      title={key ? t("Open requirement {{key}}", { key }) : undefined}
     >
       {key || t("Select requirement")}
-    </span>
+    </a>
   );
 
   return (

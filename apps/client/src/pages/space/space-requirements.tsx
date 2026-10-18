@@ -16,6 +16,7 @@ import {
 } from "@/features/space/permissions/permissions.type.ts";
 import { DocumentTitle } from "@/components/ui/document-title.tsx";
 import RequirementOverview from "@/features/requirement/components/requirement-overview.tsx";
+import RequirementDetailDrawer from "@/features/requirement/components/requirement-detail-drawer.tsx";
 import RequirementList from "@/features/requirement/components/requirement-list.tsx";
 import TraceTree from "@/features/requirement/components/trace-tree.tsx";
 import CoveragePanel from "@/features/requirement/components/coverage-panel.tsx";
@@ -43,8 +44,27 @@ export default function SpaceRequirements() {
     SpaceCaslSubject.Settings,
   );
 
+  const reqParam = searchParams.get("req");
+
   return (
     <>
+      {reqParam && (
+        <RequirementDetailDrawer
+          opened
+          onClose={() =>
+            setSearchParams(
+              (cur) => {
+                const next = new URLSearchParams(cur);
+                next.delete("req");
+                return next;
+              },
+              { replace: true },
+            )
+          }
+          spaceId={space.id}
+          requirementKey={reqParam}
+        />
+      )}
       <DocumentTitle title={`${t("Requirements")} - ${space.name}`} />
       <Container size="xl" pt="xl" pb="xl">
         <Title order={3}>{t("Requirements")}</Title>

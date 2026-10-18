@@ -29,6 +29,7 @@ import { useTranslation } from "react-i18next";
 import { useRequirementInfoQuery } from "../queries/requirement-query";
 import { useSpaceQuery } from "@/features/space/queries/space-query";
 import { buildPageUrl } from "@/features/page/page.utils";
+import { buildRequirementUrl } from "../utils/requirement-url";
 import RequirementPropertyBadge from "./requirement-property-badge";
 
 type RequirementDetailDrawerProps = {
@@ -298,7 +299,11 @@ export default function RequirementDetailDrawer({
           </Tabs>
 
           <Group gap="xs">
-            <CopyButton value={window.location.href}>
+            <CopyButton
+              value={
+                space ? buildRequirementUrl(space.slug, requirement.key) : window.location.href
+              }
+            >
               {({ copied, copy }) => (
                 <Button size="compact-sm" variant="default" onClick={copy}>
                   {copied ? t("Copied") : t("Copy link")}

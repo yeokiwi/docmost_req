@@ -59,6 +59,7 @@
   font-family: var(--mantine-font-family-monospace);
   line-height: 1.6;
   cursor: pointer;
+  text-decoration: none;
   white-space: nowrap;
   vertical-align: baseline;
   user-select: none;

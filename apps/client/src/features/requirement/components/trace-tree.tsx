@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   ActionIcon,
+  Anchor,
   Badge,
   Button,
   Checkbox,
@@ -19,9 +20,10 @@ import {
   IconColumns,
   IconDownload,
 } from "@tabler/icons-react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { notifications } from "@mantine/notifications";
+import { buildPageUrl } from "@/features/page/page.utils";
 import { ISpace } from "@/features/space/types/space.types";
 import {
   useRequirementSettingsQuery,
@@ -72,11 +74,15 @@ export default function TraceTree({ space }: { space: ISpace }) {
       children.set(col, [...(children.get(col) ?? []), row]);
       hasParent.add(row);
     }
+    const pageRefs = new Map<string, NonNullable<typeof matrix>["pageRefs"]>();
+    for (const ref of matrix?.pageRefs ?? []) {
+      pageRefs.set(ref.key, [...(pageRefs.get(ref.key) ?? []), ref]);
+    }
     const prefix = dStart.trim().toLowerCase();
     const unique = (list?.items ?? []).filter((r) =>
       prefix ? r.key.toLowerCase().startsWith(prefix) : !hasParent.has(r.key),
     );
-    return { info, children, roots: unique };
+    return { info, children, pageRefs, roots: unique };
   }, [matrix, list, dStart]);
 
   const toggle = (id: string) =>
@@ -178,6 +184,31 @@ export default function TraceTree({ space }: { space: ISpace }) {
           ) : (
             <Text size="sm" c={gap ? "red.7" : "dimmed"}>
               — {t("none")} —
+            </Text>
+          )}
+        </Table.Td>
+        <Table.Td>
+          {(model.pageRefs.get(key) ?? []).length ? (
+            <Group gap={4}>
+              {(model.pageRefs.get(key) ?? []).slice(0, 3).map((r) => (
+                <Anchor
+                  key={r.pageId}
+                  size="sm"
+                  component={Link}
+                  to={buildPageUrl(space.slug, r.pageSlugId, r.pageTitle)}
+                >
+                  {r.pageTitle || t("Untitled")}
+                </Anchor>
+              ))}
+              {(model.pageRefs.get(key) ?? []).length > 3 && (
+                <Text size="xs" c="dimmed">
+                  +{(model.pageRefs.get(key) ?? []).length - 3}
+                </Text>
+              )}
+            </Group>
+          ) : (
+            <Text size="sm" c="dimmed">
+              —
             </Text>
           )}
         </Table.Td>
@@ -286,6 +317,7 @@ export default function TraceTree({ space }: { space: ISpace }) {
                     </Badge>
                   </Group>
                 </Table.Th>
+                <Table.Th>{t("Referenced in pages")}</Table.Th>
               </Table.Tr>
             </Table.Thead>
             <Table.Tbody>
