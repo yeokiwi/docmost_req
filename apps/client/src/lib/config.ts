@@ -90,7 +90,25 @@ export function getFileImportSizeLimit() {
 
 export function getDrawioUrl() {
   // an empty DRAWIO_URL (e.g. copied from .env.example) must fall back to the default
-  return getConfigValue("DRAWIO_URL")?.trim() || "https://embed.diagrams.net";
+  const configured = getConfigValue("DRAWIO_URL")?.trim();
+  if (!configured) return "https://embed.diagrams.net";
+
+  // "localhost" only works on the server itself. When the wiki is opened from another
+  // computer, point the browser at the host name it used to reach the wiki instead.
+  try {
+    const url = new URL(configured);
+    const loopback = ["localhost", "127.0.0.1", "[::1]"];
+    if (
+      loopback.includes(url.hostname) &&
+      !loopback.includes(window.location.hostname)
+    ) {
+      url.hostname = window.location.hostname;
+      return url.toString().replace(/\/$/, "");
+    }
+  } catch {
+    /* not a valid absolute URL; use it as configured */
+  }
+  return configured;
 }
 
 export function getBillingTrialDays() {
