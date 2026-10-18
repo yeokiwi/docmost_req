@@ -10,6 +10,9 @@ import {
   IRequirementList,
   IRequirementPropertyDefinition,
   IRequirementSettings,
+  IRequirementType,
+  IRequirementTypeList,
+  IPageValidationItem,
   ITraceabilityMatrix,
 } from "../types/requirement.types";
 
@@ -48,12 +51,85 @@ export async function allocateRequirementKey(
 export async function allocateRequirementKeys(
   spaceId: string,
   count: number,
+  typeId?: string,
 ): Promise<string[]> {
   const req = await api.post<{ keys: string[] }>(
     "/requirements/allocate-key",
-    { spaceId, count },
+    { spaceId, count, typeId },
   );
   return req.data.keys;
+}
+
+export async function listRequirementTypes(
+  spaceId: string,
+): Promise<IRequirementTypeList> {
+  const req = await api.post<IRequirementTypeList>(
+    "/requirements/types/list",
+    { spaceId },
+  );
+  return req.data;
+}
+
+export type RequirementTypeInput = Partial<
+  Pick<
+    IRequirementType,
+    "name" | "keyPrefix" | "keyPadding" | "nextSeq" | "color" | "properties"
+  >
+>;
+
+export async function createRequirementType(
+  data: RequirementTypeInput & { spaceId: string },
+): Promise<IRequirementType> {
+  const req = await api.post<IRequirementType>("/requirements/types/create", data);
+  return req.data;
+}
+
+export async function updateRequirementType(
+  data: RequirementTypeInput & { typeId: string },
+): Promise<IRequirementType> {
+  const req = await api.post<IRequirementType>("/requirements/types/update", data);
+  return req.data;
+}
+
+export async function deleteRequirementType(typeId: string): Promise<void> {
+  await api.post("/requirements/types/delete", { typeId });
+}
+
+export async function resetRequirementTypeSequence(
+  typeId: string,
+): Promise<IRequirementType> {
+  const req = await api.post<IRequirementType>(
+    "/requirements/types/reset-sequence",
+    { typeId },
+  );
+  return req.data;
+}
+
+export async function validateRequirementType(typeId: string): Promise<{
+  valid: number;
+  warning: number;
+  error: number;
+  checked: number;
+}> {
+  const req = await api.post("/requirements/types/validate", { typeId });
+  return req.data as any;
+}
+
+export async function setRequirementLockKeys(
+  spaceId: string,
+  lockKeys: boolean,
+): Promise<void> {
+  await api.post("/requirements/types/lock-keys", { spaceId, lockKeys });
+}
+
+export async function getPageValidation(
+  pageId: string,
+): Promise<IPageValidationItem[]> {
+  const req = await api.post<{ items: IPageValidationItem[] }>(
+    "/requirements/page-validation",
+    { pageId },
+  );
+  return req.data.items;
 }
 
 export async function linkKeyOccurrences(params: {

@@ -16,6 +16,7 @@ import {
   RequirementLinks,
   Requirements,
   RequirementSpaceSettings,
+  RequirementTypes,
   Notifications,
   PageLabels,
   PageAccess as _PageAccess,
@@ -323,3 +324,10 @@ export type UpdatableBaseView = Updateable<Omit<BaseViews, 'id'>>;
 export type SiemDestination = Selectable<SiemDestinations>;
 export type InsertableSiemDestination = Insertable<SiemDestinations>;
 export type UpdatableSiemDestination = Updateable<Omit<SiemDestinations, 'id'>>;
+
+// Requirement Type
+export type RequirementType = Selectable<RequirementTypes>;
+export type InsertableRequirementType = Insertable<RequirementTypes>;
+export type UpdatableRequirementType = Updateable<
+  Omit<RequirementTypes, 'id' | 'spaceId' | 'workspaceId'>
+>;

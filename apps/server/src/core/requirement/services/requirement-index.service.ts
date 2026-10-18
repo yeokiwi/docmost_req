@@ -5,6 +5,8 @@ import { executeTx } from '@docmost/db/utils';
 import { InsertableRequirementLink } from '@docmost/db/types/entity.types';
 import { RequirementRepo, SpaceKey } from '../repos/requirement.repo';
 import { collectRequirementsFromPmJson } from '../utils/requirement-prosemirror.util';
+import { validateRequirement } from '../utils/requirement-type.util';
+import { RequirementTypeService } from './requirement-type.service';
 
 @Injectable()
 export class RequirementIndexService {
@@ -13,6 +15,7 @@ export class RequirementIndexService {
   constructor(
     @InjectKysely() private readonly db: KyselyDB,
     private readonly requirementRepo: RequirementRepo,
+    private readonly typeService: RequirementTypeService,
   ) {}
 
   /**
@@ -45,6 +48,19 @@ export class RequirementIndexService {
       page.workspaceId,
       refs.map((r) => r.spaceId).filter(Boolean),
     );
+
+    // every reindex re-checks the page's requirements against their types
+    const validation = await this.typeService.validationContext(page.spaceId);
+    const validate = (snap: (typeof requirements)[number]) => {
+      const result = validateRequirement(snap, validation.types, {
+        lockKeys: validation.lockKeys,
+        extraPrefixes: validation.extraPrefixes,
+      });
+      return {
+        validationStatus: result.status,
+        validationMessages: result.messages as any,
+      };
+    };
 
     await executeTx(this.db, async (trx) => {
       await this.requirementRepo.lockSpace(page.spaceId, trx);
@@ -82,6 +98,7 @@ export class RequirementIndexService {
               properties: snap.properties,
               isConflict,
               deletedAt: null,
+              ...validate(snap),
             },
             trx,
           );
@@ -97,6 +114,7 @@ export class RequirementIndexService {
               description: snap.description,
               properties: snap.properties,
               isConflict,
+              ...validate(snap),
             },
             trx,
           );

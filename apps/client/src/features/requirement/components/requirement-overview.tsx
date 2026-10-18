@@ -50,6 +50,8 @@ export default function RequirementOverview({ space }: { space: ISpace }) {
     const covered = items.filter((r) => r.referenceCount > 0);
     const uncovered = items.filter((r) => r.referenceCount === 0);
     const duplicates = items.filter((r) => r.isConflict);
+    const invalid = items.filter((r) => r.validationStatus === "error");
+    const warnings = items.filter((r) => r.validationStatus === "warning");
     const withDeps = items.filter((r) => (r.dependsOn?.length ?? 0) > 0);
 
     const byPage = new Map<
@@ -94,6 +96,8 @@ export default function RequirementOverview({ space }: { space: ISpace }) {
       covered: covered.length,
       uncovered,
       duplicates,
+      invalid,
+      warnings,
       withDeps: withDeps.length,
       pages: [...byPage.values()].sort((a, b) => b.count - a.count).slice(0, 5),
       breakdowns,
@@ -152,11 +156,15 @@ export default function RequirementOverview({ space }: { space: ISpace }) {
           withBorder
           p="md"
           radius="md"
-          style={
-            stats.duplicates.length
+          component={Link}
+          to={`/s/${space.slug}/requirements?tab=list&val=issues`}
+          style={{
+            textDecoration: "none",
+            color: "inherit",
+            ...(stats.invalid.length || stats.duplicates.length
               ? { borderColor: "var(--mantine-color-red-6)" }
-              : undefined
-          }
+              : {}),
+          }}
         >
           <Text size="sm" c="dimmed">
             {t("Validation issues")}
@@ -165,12 +173,15 @@ export default function RequirementOverview({ space }: { space: ISpace }) {
             fz={28}
             fw={700}
             lh={1.2}
-            c={stats.duplicates.length ? "red.7" : undefined}
+            c={stats.invalid.length || stats.duplicates.length ? "red.7" : undefined}
           >
-            {stats.duplicates.length}
+            {stats.invalid.length + stats.duplicates.length}
           </Text>
           <Text size="sm" c="dimmed">
-            {t("{{count}} not covered", { count: stats.uncovered.length })}
+            {t("{{warnings}} warnings · {{duplicates}} duplicate keys", {
+              warnings: stats.warnings.length,
+              duplicates: stats.duplicates.length,
+            })}
           </Text>
         </Paper>
         <Paper withBorder p="md" radius="md">

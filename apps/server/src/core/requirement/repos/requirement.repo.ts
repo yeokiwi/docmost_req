@@ -166,6 +166,18 @@ export class RequirementRepo {
     }
   }
 
+  /** Requirements on a page that fail or warn against their type. */
+  async findValidationIssues(pageId: string, trx?: KyselyTransaction) {
+    const db = dbOrTx(this.db, trx);
+    return db
+      .selectFrom('requirements')
+      .select(['nodeId', 'key', 'validationStatus', 'validationMessages'])
+      .where('pageId', '=', pageId)
+      .where('deletedAt', 'is', null)
+      .where('validationStatus', 'in', ['error', 'warning'])
+      .execute();
+  }
+
   async findConflictNodeIds(
     pageId: string,
     trx?: KyselyTransaction,

@@ -31,8 +31,10 @@ import type { RequirementProperties } from "@docmost/editor-ext";
 import classes from "./requirement.module.css";
 import {
   usePageRequirementConflictsQuery,
+  usePageValidationQuery,
   useRequirementSettingsQuery,
 } from "@/features/requirement/queries/requirement-query";
+import { addTableColumn } from "@/features/requirement/utils/requirement-table";
 import { usePageQuery } from "@/features/page/queries/page-query";
 import { getEditorPageId } from "@/features/requirement/utils/editor-space";
 import { reassignRequirementKey } from "@/features/requirement/utils/insert-requirement";
@@ -59,6 +61,23 @@ export default function RequirementView(props: NodeViewProps) {
     isEditable ? pageId : undefined,
   );
   const isConflict = !!nodeId && !!conflictNodeIds?.includes(nodeId);
+
+  // checks against the requirement type: errors always, warnings while editing
+  const { data: validationItems } = usePageValidationQuery(pageId);
+  const validation = validationItems?.find(
+    (v) => (nodeId && v.nodeId === nodeId) || v.key === key,
+  );
+  const messages = (validation?.validationMessages ?? []).filter(
+    (m) => isEditable || m.level === "error",
+  );
+  const [quickFixProperty, setQuickFixProperty] = useState<string | null>(null);
+
+  const quickFix = (property: string) => {
+    const pos = getPos();
+    // in a table, a missing property is a missing column
+    if (typeof pos === "number" && addTableColumn(editor, pos, property)) return;
+    setQuickFixProperty(property);
+  };
 
   const [searchParams] = useSearchParams();
   const [highlighted, setHighlighted] = useState(false);
@@ -165,6 +184,32 @@ export default function RequirementView(props: NodeViewProps) {
           ))}
         </div>
 
+        {messages.map((m, i) => (
+          <Group key={`${m.property ?? ""}-${i}`} gap={2} wrap="nowrap">
+            <Tooltip label={m.message} withinPortal multiline maw={280}>
+              <Badge
+                color={m.level === "error" ? "red" : "yellow"}
+                variant="light"
+                radius="xl"
+                size="sm"
+                tt="none"
+              >
+                {m.property ?? t("Key")}
+              </Badge>
+            </Tooltip>
+            {isEditable && m.property && m.code === "missing" && (
+              <Button
+                size="compact-xs"
+                variant="subtle"
+                color={m.level === "error" ? "red" : "yellow"}
+                onClick={() => quickFix(m.property!)}
+              >
+                {t("Quick fix")}
+              </Button>
+            )}
+          </Group>
+        ))}
+
         {isConflict && isEditable && (
           <Tooltip label={t("Assign a new key")} withinPortal>
             <ActionIcon
@@ -181,6 +226,8 @@ export default function RequirementView(props: NodeViewProps) {
 
         {isEditable && (
           <PropertiesPopover
+            openWith={quickFixProperty}
+            onOpenWithHandled={() => setQuickFixProperty(null)}
             properties={properties ?? {}}
             schema={
               (settings?.propertySchema ??
@@ -221,10 +268,15 @@ function PropertiesPopover({
   properties,
   schema,
   onChange,
+  openWith,
+  onOpenWithHandled,
 }: {
   properties: RequirementProperties;
   schema: IRequirementPropertyDefinition[];
   onChange: (properties: RequirementProperties) => void;
+  // quick fix: open with this (missing) property ready to fill in
+  openWith?: string | null;
+  onOpenWithHandled?: () => void;
 }) {
   const { t } = useTranslation();
   const [opened, setOpened] = useState(false);
@@ -234,6 +286,14 @@ function PropertiesPopover({
   useEffect(() => {
     if (opened) setDraft(properties);
   }, [opened]);
+
+  useEffect(() => {
+    if (!openWith) return;
+    setOpened(true);
+    // after the reset above, so the property stays in the draft
+    setTimeout(() => setDraft((prev) => ({ [openWith]: "", ...prev })), 0);
+    onOpenWithHandled?.();
+  }, [openWith]);
 
   const schemaNames = new Set(schema.map((d) => d.name));
   const customEntries = Object.entries(draft).filter(

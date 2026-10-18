@@ -172,3 +172,50 @@ export function useCompareBaselinesQuery(params: {
     enabled: !!params.fromBaselineId,
   });
 }
+
+export function useRequirementTypesQuery(spaceId: string | undefined) {
+  return useQuery({
+    queryKey: ["requirement-types", spaceId],
+    queryFn: () => requirementService.listRequirementTypes(spaceId!),
+    enabled: !!spaceId,
+    staleTime: 30 * 1000,
+  });
+}
+
+/**
+ * Wraps a requirement-type action: on success refresh the types and anything
+ * showing validation results; on failure show the server's message.
+ */
+export function useRequirementTypeMutation<TArgs, TResult>(
+  spaceId: string | undefined,
+  fn: (args: TArgs) => Promise<TResult>,
+  successMessage?: (result: TResult) => string | undefined,
+) {
+  const qc = useQueryClient();
+  const { t } = useTranslation();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (result) => {
+      const message = successMessage?.(result);
+      if (message) notifications.show({ message });
+      qc.invalidateQueries({ queryKey: ["requirement-types", spaceId] });
+      qc.invalidateQueries({ queryKey: ["requirements", spaceId] });
+      qc.invalidateQueries({ queryKey: ["page-requirement-validation"] });
+    },
+    onError: (error) => {
+      notifications.show({
+        message: errorMessage(error) || t("Something went wrong"),
+        color: "red",
+      });
+    },
+  });
+}
+
+export function usePageValidationQuery(pageId: string | undefined) {
+  return useQuery({
+    queryKey: ["page-requirement-validation", pageId],
+    queryFn: () => requirementService.getPageValidation(pageId!),
+    enabled: !!pageId,
+    refetchInterval: 30 * 1000,
+  });
+}

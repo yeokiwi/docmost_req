@@ -3,6 +3,7 @@ import {
   ArrayMaxSize,
   IsArray,
   IsIn,
+  IsBoolean,
   IsInt,
   IsNotEmpty,
   IsObject,
@@ -79,6 +80,11 @@ export class AllocateKeyDto {
   @Min(1)
   @Max(200)
   count?: number;
+
+  // allocate from a requirement type's sequence instead of the space's
+  @IsOptional()
+  @IsUUID()
+  typeId?: string;
 }
 
 export class RequirementFilterDto {
@@ -103,6 +109,11 @@ export class RequirementFilterDto {
   @IsOptional()
   @IsIn(['any', 'covered', 'uncovered'])
   coverage?: 'any' | 'covered' | 'uncovered';
+
+  // validation against the requirement type: 'issues' is errors or warnings
+  @IsOptional()
+  @IsIn(['any', 'error', 'warning', 'issues', 'valid'])
+  validation?: 'any' | 'error' | 'warning' | 'issues' | 'valid';
 
   @IsOptional()
   @IsArray()
@@ -261,4 +272,106 @@ export class LinkKeyOccurrencesDto {
   @IsOptional()
   @IsUUID()
   excludePageId?: string;
+}
+
+export const REQUIREMENT_TYPE_COLORS = [
+  'blue',
+  'cyan',
+  'teal',
+  'green',
+  'lime',
+  'yellow',
+  'orange',
+  'red',
+  'pink',
+  'grape',
+  'violet',
+  'indigo',
+  'gray',
+];
+
+export class RequirementTypePropertyDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  name: string;
+
+  @IsBoolean()
+  required: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
+  @IsString({ each: true })
+  @MaxLength(100, { each: true })
+  options?: string[];
+}
+
+export class RequirementTypeFieldsDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(32)
+  keyPrefix?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(8)
+  keyPadding?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  nextSeq?: number;
+
+  @IsOptional()
+  @IsIn(REQUIREMENT_TYPE_COLORS)
+  color?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(30)
+  @ValidateNested({ each: true })
+  @Type(() => RequirementTypePropertyDto)
+  properties?: RequirementTypePropertyDto[];
+}
+
+export class CreateRequirementTypeDto extends RequirementTypeFieldsDto {
+  @IsUUID()
+  spaceId: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(64)
+  declare name: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(32)
+  declare keyPrefix: string;
+}
+
+export class UpdateRequirementTypeDto extends RequirementTypeFieldsDto {
+  @IsUUID()
+  typeId: string;
+}
+
+export class RequirementTypeIdDto {
+  @IsUUID()
+  typeId: string;
+}
+
+export class LockKeysDto {
+  @IsUUID()
+  spaceId: string;
+
+  @IsBoolean()
+  lockKeys: boolean;
 }

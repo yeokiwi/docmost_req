@@ -7,9 +7,20 @@ import {
   allocateRequirementKey,
   allocateRequirementKeys,
   getRequirementSettings,
+  listRequirementTypes,
 } from "../services/requirement-service";
+import {
+  IRequirementType,
+  IRequirementTypeList,
+} from "../types/requirement.types";
+import {
+  findTableAround,
+  requirementTableTemplate,
+} from "./requirement-table";
 import { convertSelectedKeys, openTransformDialog } from "./convert-keys";
-import InsertRequirementDialog from "../components/insert-requirement-dialog";
+import InsertRequirementDialog, {
+  matchRequirementType,
+} from "../components/insert-requirement-dialog";
 import BulkInsertRequirementsForm, {
   buildBulkKeys,
 } from "../components/bulk-insert-requirements-form";
@@ -51,8 +62,13 @@ export function insertRequirementFromShortcut(editor: Editor): boolean {
 async function openInsertDialog(editor: Editor) {
   const spaceId = await resolveEditorSpaceId(editor).catch(() => undefined);
   let nextKey: string | null = null;
+  let typeList: IRequirementTypeList | null = null;
   try {
-    const settings = spaceId ? await getRequirementSettings(spaceId) : null;
+    const [settings, types] = await Promise.all([
+      spaceId ? getRequirementSettings(spaceId) : null,
+      spaceId ? listRequirementTypes(spaceId) : null,
+    ]);
+    typeList = types;
     if (settings) {
       nextKey = `${settings.keyPrefix}-${String(settings.nextSeq).padStart(settings.keyPadding, "0")}`;
     }
@@ -61,6 +77,7 @@ async function openInsertDialog(editor: Editor) {
   }
   // remember where the cursor was; the dialog takes focus
   const { from, to } = editor.state.selection;
+  const types = typeList?.types ?? [];
 
   const id = modals.open({
     title: i18n.t("Insert requirement"),
@@ -69,24 +86,93 @@ async function openInsertDialog(editor: Editor) {
       <InsertRequirementDialog
         spaceId={spaceId}
         nextKey={nextKey}
-        onSelect={(choice) => {
+        types={types}
+        lockKeys={typeList?.lockKeys}
+        defaultPrefix={typeList?.defaultPrefix}
+        onSelect={async (choice) => {
           modals.close(id);
           editor.chain().focus().setTextSelection({ from, to }).run();
-          if (choice.kind === "next") {
-            void insertRequirementBlock(editor);
-          } else if (choice.kind === "define") {
-            editor.chain().focus().setRequirement({ key: choice.key, title: "" }).run();
-          } else {
-            editor
-              .chain()
-              .focus()
-              .setRequirementRef({ key: choice.key, spaceId: spaceId ?? null })
-              .run();
+          try {
+            if (choice.kind === "next") {
+              await insertRequirementBlock(editor);
+            } else if (choice.kind === "type") {
+              const [key] = await allocateRequirementKeys(spaceId!, 1, choice.type.id);
+              insertTypedRequirement(editor, key, choice.type);
+            } else if (choice.kind === "define") {
+              insertTypedRequirement(
+                editor,
+                choice.key,
+                matchRequirementType(choice.key, types),
+              );
+            } else {
+              editor
+                .chain()
+                .focus()
+                .setRequirementRef({ key: choice.key, spaceId: spaceId ?? null })
+                .run();
+            }
+          } catch (err) {
+            showError(err);
           }
         }}
       />
     ),
   });
+}
+
+/**
+ * Inserts a requirement; when its type has properties and the cursor is on an
+ * empty line or in an empty table, inserts the type's table template instead.
+ */
+export function insertTypedRequirement(
+  editor: Editor,
+  key: string,
+  type: IRequirementType | null,
+) {
+  const properties = type?.properties ?? [];
+  const { state } = editor;
+  const { $from } = state.selection;
+
+  if (properties.length) {
+    const template = requirementTableTemplate(
+      key,
+      properties,
+      i18n.t("Requirement"),
+    );
+    const table = findTableAround(editor, $from.pos);
+    if (table) {
+      let hasRequirement = false;
+      table.node.descendants((n) => {
+        if (n.type.name === "requirement") hasRequirement = true;
+        return !hasRequirement;
+      });
+      // columns are only added to a table that has no text yet
+      if (!hasRequirement && !table.node.textContent.trim()) {
+        editor
+          .chain()
+          .focus()
+          .insertContentAt(
+            { from: table.pos, to: table.pos + table.node.nodeSize },
+            template,
+          )
+          .run();
+        return;
+      }
+    } else if (
+      $from.parent.type.name === "paragraph" &&
+      $from.parent.content.size === 0 &&
+      $from.depth === 1
+    ) {
+      editor
+        .chain()
+        .focus()
+        .insertContentAt({ from: $from.before(), to: $from.after() }, template)
+        .run();
+      return;
+    }
+  }
+
+  editor.chain().focus().setRequirement({ key, title: "" }).run();
 }
 
 type BulkTarget = { from: number; to: number };
@@ -140,9 +226,14 @@ async function openBulkInsertDialog(editor: Editor) {
   let defaultPrefix = "";
   let defaultNumber = "1";
   let spaceKeyPrefix: string | null = null;
+  let typeList: IRequirementTypeList | null = null;
   try {
     const spaceId = await resolveEditorSpaceId(editor);
-    const settings = spaceId ? await getRequirementSettings(spaceId) : null;
+    const [settings, types] = await Promise.all([
+      spaceId ? getRequirementSettings(spaceId) : null,
+      spaceId ? listRequirementTypes(spaceId).catch(() => null) : null,
+    ]);
+    typeList = types;
     if (settings) {
       spaceKeyPrefix = `${settings.keyPrefix}-`;
       defaultPrefix = spaceKeyPrefix;
@@ -151,6 +242,13 @@ async function openBulkInsertDialog(editor: Editor) {
   } catch {
     // fall back to an empty prefix the user fills in
   }
+  const types = typeList?.types ?? [];
+  // with locked keys only the types' prefixes (and the space prefix) are allowed
+  const allowedPrefixes = typeList?.lockKeys
+    ? [...types.map((t) => t.keyPrefix), ...(spaceKeyPrefix ? [spaceKeyPrefix] : [])]
+    : null;
+  const typeNext = (type: IRequirementType) =>
+    String(type.nextSeq).padStart(type.keyPadding, "0");
 
   const id = modals.open({
     title: i18n.t("Insert the requirement macro"),
@@ -160,23 +258,39 @@ async function openBulkInsertDialog(editor: Editor) {
         count={count}
         defaultPrefix={defaultPrefix}
         defaultNumber={defaultNumber}
+        allowedPrefixes={allowedPrefixes}
+        prefixSuggestions={types.map((t) => ({
+          prefix: t.keyPrefix,
+          number: typeNext(t),
+          label: t.name,
+        }))}
         onCancel={() => modals.close(id)}
         onSubmit={(prefix, first) => {
           modals.close(id);
-          const untouched =
-            prefix === spaceKeyPrefix && first === defaultNumber;
-          void runBulkInsert(editor, prefix, first, untouched);
+          const upper = prefix.toUpperCase();
+          // the next keys of the space or of a type are reserved, so the sequence moves on
+          const type = types.find(
+            (t) => t.keyPrefix === upper && typeNext(t) === first,
+          );
+          const reserve: Reserve = type
+            ? { typeId: type.id }
+            : prefix === spaceKeyPrefix && first === defaultNumber
+              ? { space: true }
+              : null;
+          void runBulkInsert(editor, prefix, first, reserve);
         }}
       />
     ),
   });
 }
 
+type Reserve = { space: true } | { typeId: string } | null;
+
 async function runBulkInsert(
   editor: Editor,
   prefix: string,
   first: string,
-  reserveFromSpace: boolean,
+  reserve: Reserve,
 ) {
   try {
     // ranges are read again: the document may have changed while the dialog was open
@@ -184,11 +298,14 @@ async function runBulkInsert(
     if (!targets.length) return;
 
     let keys: string[];
-    if (reserveFromSpace) {
-      // the defaults are the space's next keys, so reserve them to keep the sequence moving
+    if (reserve) {
       const spaceId = await resolveEditorSpaceId(editor);
       if (!spaceId) return;
-      keys = await allocateRequirementKeys(spaceId, targets.length);
+      keys = await allocateRequirementKeys(
+        spaceId,
+        targets.length,
+        "typeId" in reserve ? reserve.typeId : undefined,
+      );
     } else {
       keys = buildBulkKeys(prefix, first, targets.length).map((k) =>
         k.toUpperCase(),

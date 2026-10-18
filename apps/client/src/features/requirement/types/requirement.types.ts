@@ -1,11 +1,64 @@
 export type RequirementCoverage = "any" | "covered" | "uncovered";
 
+export type RequirementValidationStatus = "valid" | "warning" | "error";
+export type RequirementValidationFilter =
+  | "any"
+  | "error"
+  | "warning"
+  | "issues"
+  | "valid";
+
+export interface IValidationMessage {
+  level: "error" | "warning";
+  code?: "missing" | "not_allowed" | "unmatched_key";
+  property?: string;
+  message: string;
+}
+
+export interface IRequirementTypeProperty {
+  name: string;
+  required: boolean;
+  options?: string[];
+}
+
+export interface IRequirementType {
+  id: string;
+  spaceId: string;
+  name: string;
+  keyPrefix: string;
+  nextSeq: number;
+  keyPadding: number;
+  color: string;
+  properties: IRequirementTypeProperty[];
+}
+
+export interface IKeySuggestion {
+  keyPrefix: string;
+  count: number;
+  maxNumber: number;
+}
+
+export interface IRequirementTypeList {
+  types: IRequirementType[];
+  suggestions: IKeySuggestion[];
+  lockKeys: boolean;
+  defaultPrefix: string | null;
+}
+
+export interface IPageValidationItem {
+  nodeId: string;
+  key: string;
+  validationStatus: RequirementValidationStatus;
+  validationMessages: IValidationMessage[];
+}
+
 export interface IRequirementFilter {
   text?: string;
   keyPrefix?: string;
   properties?: Record<string, string>;
   pageId?: string;
   coverage?: RequirementCoverage;
+  validation?: RequirementValidationFilter;
   keys?: string[];
 }
 
@@ -36,6 +89,8 @@ export interface IRequirement {
   pageId: string;
   nodeId: string;
   isConflict: boolean;
+  validationStatus?: RequirementValidationStatus | null;
+  validationMessages?: IValidationMessage[];
   createdAt: string;
   updatedAt: string;
   pageTitle: string | null;

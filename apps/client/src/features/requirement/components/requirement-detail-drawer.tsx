@@ -26,7 +26,12 @@ import {
 } from "@tabler/icons-react";
 import { Link } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { useRequirementInfoQuery } from "../queries/requirement-query";
+import {
+  useRequirementInfoQuery,
+  useRequirementTypesQuery,
+} from "../queries/requirement-query";
+import { matchRequirementType } from "./insert-requirement-dialog";
+import { TypeLozenge } from "./requirement-types-panel";
 import { useSpaceQuery } from "@/features/space/queries/space-query";
 import { buildPageUrl } from "@/features/page/page.utils";
 import { buildRequirementUrl } from "../utils/requirement-url";
@@ -63,6 +68,11 @@ export default function RequirementDetailDrawer({
     buildPageUrl(space?.slug, slugId, title ?? undefined);
 
   const requirement = data?.requirement;
+  const { data: typeList } = useRequirementTypesQuery(data?.page?.spaceId);
+  const requirementType = requirement
+    ? matchRequirementType(requirement.key, typeList?.types ?? [])
+    : null;
+  const validationMessages = requirement?.validationMessages ?? [];
   const properties = Object.entries(requirement?.properties ?? {});
 
   return (
@@ -100,6 +110,7 @@ export default function RequirementDetailDrawer({
               )}
             </CopyButton>
           )}
+          {requirementType && <TypeLozenge type={requirementType} />}
           {requirement && !requirement.isConflict && (
             <Badge color="green" variant="light" radius="sm" size="sm">
               {t("Original definition")}
@@ -177,6 +188,21 @@ export default function RequirementDetailDrawer({
               </Button>
             )}
           </Group>
+
+          {validationMessages.length > 0 && (
+            <Stack gap={4}>
+              {validationMessages.map((m, i) => (
+                <Text
+                  key={i}
+                  size="sm"
+                  c={m.level === "error" ? "red.7" : "yellow.8"}
+                >
+                  {m.level === "error" ? "✕ " : "⚠ "}
+                  {m.message}
+                </Text>
+              ))}
+            </Stack>
+          )}
 
           {properties.length > 0 && (
             <Paper withBorder radius="md" p="sm">

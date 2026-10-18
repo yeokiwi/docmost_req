@@ -20,6 +20,8 @@ export type RequirementListItem = {
   pageId: string;
   nodeId: string;
   isConflict: boolean;
+  validationStatus: 'valid' | 'warning' | 'error' | null;
+  validationMessages: Array<{ level: string; property?: string; message: string }>;
   createdAt: Date;
   updatedAt: Date;
   pageTitle: string | null;
@@ -49,6 +51,8 @@ export class RequirementQueryService {
         'requirements.pageId',
         'requirements.nodeId',
         'requirements.isConflict',
+        'requirements.validationStatus',
+        'requirements.validationMessages',
         'requirements.createdAt',
         'requirements.updatedAt',
         'pages.title as pageTitle',
@@ -111,6 +115,12 @@ export class RequirementQueryService {
 
     if (filter.pageId) {
       query = query.where('requirements.pageId', '=', filter.pageId);
+    }
+
+    if (filter.validation === 'error' || filter.validation === 'warning' || filter.validation === 'valid') {
+      query = query.where('requirements.validationStatus', '=', filter.validation);
+    } else if (filter.validation === 'issues') {
+      query = query.where('requirements.validationStatus', 'in', ['error', 'warning']);
     }
 
     if (filter.coverage === 'covered' || filter.coverage === 'uncovered') {

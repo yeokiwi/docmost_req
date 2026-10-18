@@ -14,6 +14,7 @@ import {
   Table,
   Text,
   TextInput,
+  Tooltip,
 } from "@mantine/core";
 import { useDebouncedValue } from "@mantine/hooks";
 import {
@@ -42,6 +43,7 @@ import { exportRequirements } from "../services/requirement-service";
 import {
   IRequirementFilter,
   RequirementCoverage,
+  RequirementValidationFilter,
 } from "../types/requirement.types";
 import RequirementPropertyBadge from "./requirement-property-badge";
 import RequirementKey, { StatusLozenge } from "./requirement-key";
@@ -75,6 +77,7 @@ export default function RequirementList({
   const coverage = (searchParams.get("cov") ?? "any") as RequirementCoverage;
   const setCoverage = (v: RequirementCoverage) =>
     setParam("cov", v === "any" ? null : v);
+  const validation = (searchParams.get("val") ?? "any") as RequirementValidationFilter;
   const pageSize = Number(searchParams.get("size")) || 50;
   const propertyFilters: Record<string, string> = {};
   searchParams.forEach((value, name) => {
@@ -111,6 +114,7 @@ export default function RequirementList({
     text: debouncedText.trim() || undefined,
     properties: Object.keys(properties).length ? properties : undefined,
     coverage,
+    validation: validation === "any" ? undefined : validation,
   };
 
   const { data: settings } = useRequirementSettingsQuery(space.id);
@@ -143,7 +147,8 @@ export default function RequirementList({
   const activeFilterCount =
     Object.keys(propertyFilters).length +
     (text ? 1 : 0) +
-    (coverage !== "any" ? 1 : 0);
+    (coverage !== "any" ? 1 : 0) +
+    (validation !== "any" ? 1 : 0);
 
   const items = useMemo(() => {
     const list = [...(data?.items ?? [])];
@@ -310,6 +315,24 @@ export default function RequirementList({
               { value: "any", label: t("All") },
               { value: "covered", label: t("Covered") },
               { value: "uncovered", label: t("Not covered") },
+            ]}
+          />
+          <Select
+            size="sm"
+            w={170}
+            allowDeselect={false}
+            aria-label={t("Validation")}
+            value={validation}
+            onChange={(v) => {
+              setParam("val", v && v !== "any" ? v : null);
+              setPage(1);
+            }}
+            data={[
+              { value: "any", label: t("Any validation") },
+              { value: "issues", label: t("Errors or warnings") },
+              { value: "error", label: t("Errors") },
+              { value: "warning", label: t("Warnings") },
+              { value: "valid", label: t("Valid") },
             ]}
           />
           {activeFilterCount > 0 && (
@@ -542,6 +565,27 @@ export default function RequirementList({
                             : t("Not covered")
                       }
                     />
+                    {(r.validationStatus === "error" ||
+                      r.validationStatus === "warning") && (
+                      <Tooltip
+                        withinPortal
+                        multiline
+                        maw={320}
+                        label={(r.validationMessages ?? [])
+                          .map((m) => m.message)
+                          .join("\n")}
+                      >
+                        <Badge
+                          ml={4}
+                          size="sm"
+                          radius="sm"
+                          variant="light"
+                          color={r.validationStatus === "error" ? "red" : "yellow"}
+                        >
+                          {r.validationStatus === "error" ? t("Invalid") : t("Warning")}
+                        </Badge>
+                      </Tooltip>
+                    )}
                   </Table.Td>
                   {columns.map((c) => (
                     <Table.Td key={c}>

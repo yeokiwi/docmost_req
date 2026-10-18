@@ -14,14 +14,36 @@ import clsx from "clsx";
 import { useTranslation } from "react-i18next";
 import classes from "@/features/editor/components/requirement/requirement.module.css";
 import { listRequirements } from "../services/requirement-service";
-import { IRequirement } from "../types/requirement.types";
+import { IRequirement, IRequirementType } from "../types/requirement.types";
 
 export type InsertChoice =
   | { kind: "next" }
+  | { kind: "type"; type: IRequirementType }
   | { kind: "define"; key: string }
   | { kind: "link"; key: string };
 
-type Option = { choice: InsertChoice; label: string; hint: string; title?: string };
+/** The type whose prefix `key` uses (longest prefix wins). */
+export function matchRequirementType(
+  key: string,
+  types: IRequirementType[],
+): IRequirementType | null {
+  const upper = key.toUpperCase();
+  let best: IRequirementType | null = null;
+  for (const type of types) {
+    if (!upper.startsWith(type.keyPrefix)) continue;
+    if (!/^\d+$/.test(upper.slice(type.keyPrefix.length))) continue;
+    if (!best || type.keyPrefix.length > best.keyPrefix.length) best = type;
+  }
+  return best;
+}
+
+type Option = {
+  choice: InsertChoice;
+  label: string;
+  hint: string;
+  title?: string;
+  color?: string;
+};
 
 /**
  * Alt+Shift+R: type a key. An existing key inserts a link to it; a new key
@@ -30,10 +52,16 @@ type Option = { choice: InsertChoice; label: string; hint: string; title?: strin
 export default function InsertRequirementDialog({
   spaceId,
   nextKey,
+  types = [],
+  lockKeys = false,
+  defaultPrefix = null,
   onSelect,
 }: {
   spaceId: string | undefined;
   nextKey: string | null;
+  types?: IRequirementType[];
+  lockKeys?: boolean;
+  defaultPrefix?: string | null;
   onSelect: (choice: InsertChoice) => void;
 }) {
   const { t } = useTranslation();
@@ -69,15 +97,26 @@ export default function InsertRequirementDialog({
   }, []);
 
   const typed = query.trim().toUpperCase();
+  const typedType = typed ? matchRequirementType(typed, types) : null;
+  const allowedByDefault =
+    !!defaultPrefix &&
+    typed.startsWith(defaultPrefix) &&
+    /^\d+$/.test(typed.slice(defaultPrefix.length));
+  // with locked keys a new key must belong to a type (or the space prefix);
+  // only complain once the key looks finished (ends with a number)
+  const lockedOut = lockKeys && !!typed && !typedType && !allowedByDefault;
+  const showLockError = lockedOut && /\d$/.test(typed);
   const invalid = /[/\\]/.test(typed);
   const exact = matches.some((m) => m.key === typed);
 
   const options: Option[] = [];
-  if (typed && !exact && !invalid) {
+  if (typed && !exact && !invalid && !lockedOut) {
     options.push({
       choice: { kind: "define", key: typed },
       label: typed,
       hint: t("Create"),
+      title: typedType?.name,
+      color: typedType?.color,
     });
   }
   if (!typed && nextKey) {
@@ -85,6 +124,20 @@ export default function InsertRequirementDialog({
       choice: { kind: "next" },
       label: nextKey,
       hint: t("Create"),
+    });
+  }
+  // the next key of each type that matches what was typed so far
+  for (const type of types) {
+    if (typed && !type.keyPrefix.startsWith(typed) && !typed.startsWith(type.keyPrefix)) {
+      continue;
+    }
+    if (typedType && typedType.id === type.id && typed !== type.keyPrefix) continue;
+    options.push({
+      choice: { kind: "type", type },
+      label: `${type.keyPrefix}${String(type.nextSeq).padStart(type.keyPadding, "0")}`,
+      hint: t("Create"),
+      title: type.name,
+      color: type.color,
     });
   }
   for (const m of matches) {
@@ -103,7 +156,13 @@ export default function InsertRequirementDialog({
         size="sm"
         placeholder={t("Enter requirement key")}
         value={query}
-        error={invalid ? t("A key cannot contain / or \\") : undefined}
+        error={
+          invalid
+            ? t("A key cannot contain / or \\")
+            : showLockError
+              ? t("Keys are locked: use the prefix of a requirement type")
+              : undefined
+        }
         rightSection={loading ? <Loader size={12} /> : null}
         ff="monospace"
         onChange={(e) => setQuery(e.currentTarget.value)}
@@ -148,11 +207,16 @@ export default function InsertRequirementDialog({
               <Text size="sm" ff="monospace" fw={600}>
                 {o.label}
               </Text>
-              {o.title && (
-                <Text size="sm" c="dimmed" truncate>
-                  {o.title}
-                </Text>
-              )}
+              {o.title &&
+                (o.color ? (
+                  <Badge size="xs" radius="sm" variant="light" color={o.color}>
+                    {o.title}
+                  </Badge>
+                ) : (
+                  <Text size="sm" c="dimmed" truncate>
+                    {o.title}
+                  </Text>
+                ))}
             </Group>
           </UnstyledButton>
         ))}

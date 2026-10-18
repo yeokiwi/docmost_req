@@ -47,6 +47,7 @@ import {
 } from "@/features/comment/atoms/comment-atom";
 import CommentDialog from "@/features/comment/components/comment-dialog";
 import { EditorBubbleMenu } from "@/features/editor/components/bubble-menu/bubble-menu";
+import RequirementValidationBanner from "@/features/requirement/components/requirement-validation-banner";
 import { ReadonlyBubbleMenu } from "@/features/editor/components/bubble-menu/readonly-bubble-menu";
 import TableMenu from "@/features/editor/components/table/table-menu.tsx";
 import { TableHandlesLayer } from "@/features/editor/components/table/handle/table-handles-layer";
@@ -504,6 +505,10 @@ function CollabPageEditor({
   return (
     <div className="editor-container" style={{ position: "relative" }}>
       <div ref={menuContainerRef}>
+        <RequirementValidationBanner
+          pageId={pageId}
+          editing={!!editorIsEditable}
+        />
         <EditorContent editor={editor} />
 
         {editor && (

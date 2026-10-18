@@ -765,6 +765,21 @@ export interface RequirementSpaceSettings {
   nextSeq: Generated<number>;
   keyPadding: Generated<number>;
   propertySchema: Generated<Json>;
+  lockKeys: Generated<boolean>;
+  createdAt: Generated<Timestamp>;
+  updatedAt: Generated<Timestamp>;
+}
+
+export interface RequirementTypes {
+  id: Generated<string>;
+  workspaceId: string;
+  spaceId: string;
+  name: string;
+  keyPrefix: string;
+  nextSeq: Generated<number>;
+  keyPadding: Generated<number>;
+  color: Generated<string>;
+  properties: Generated<Json>;
   createdAt: Generated<Timestamp>;
   updatedAt: Generated<Timestamp>;
 }
@@ -780,6 +795,8 @@ export interface Requirements {
   description: Generated<string>;
   properties: Generated<Json>;
   isConflict: Generated<boolean>;
+  validationStatus: string | null;
+  validationMessages: Generated<Json>;
   tsv: string | null;
   createdAt: Generated<Timestamp>;
   updatedAt: Generated<Timestamp>;
@@ -860,6 +877,7 @@ export interface DB {
   requirementLinks: RequirementLinks;
   requirements: Requirements;
   requirementSpaceSettings: RequirementSpaceSettings;
+  requirementTypes: RequirementTypes;
   scimTokens: ScimTokens;
   shares: Shares;
   siemDestinations: SiemDestinations;

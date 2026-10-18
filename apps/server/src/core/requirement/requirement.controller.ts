@@ -31,6 +31,10 @@ import {
 import { PageAccessService } from '../page/page-access/page-access.service';
 import {
   AllocateKeyDto,
+  CreateRequirementTypeDto,
+  LockKeysDto,
+  RequirementTypeIdDto,
+  UpdateRequirementTypeDto,
   LinkKeyOccurrencesDto,
   BaselineIdDto,
   CompareBaselinesDto,
@@ -47,6 +51,7 @@ import {
 import { RequirementSettingsService } from './services/requirement-settings.service';
 import { RequirementQueryService } from './services/requirement-query.service';
 import { RequirementBaselineService } from './services/requirement-baseline.service';
+import { RequirementTypeService } from './services/requirement-type.service';
 import { RequirementLinkTextService } from './services/requirement-link-text.service';
 import { RequirementTransferService } from './services/requirement-transfer.service';
 import { RequirementRepo } from './repos/requirement.repo';
@@ -62,6 +67,7 @@ export class RequirementController {
     private readonly baselineService: RequirementBaselineService,
     private readonly transferService: RequirementTransferService,
     private readonly linkTextService: RequirementLinkTextService,
+    private readonly typeService: RequirementTypeService,
     private readonly requirementRepo: RequirementRepo,
     private readonly spaceAbility: SpaceAbilityFactory,
     private readonly spaceRepo: SpaceRepo,
@@ -131,11 +137,119 @@ export class RequirementController {
       SpaceCaslAction.Edit,
       SpaceCaslSubject.Page,
     );
-    const keys = await this.settingsService.allocateKeys(
-      dto.spaceId,
-      dto.count ?? 1,
-    );
+    let keys: string[];
+    if (dto.typeId) {
+      const type = await this.typeService.findById(dto.typeId, workspace.id);
+      if (type.spaceId !== dto.spaceId) throw new NotFoundException();
+      keys = await this.typeService.allocateKeys(type, dto.count ?? 1);
+    } else {
+      keys = await this.settingsService.allocateKeys(dto.spaceId, dto.count ?? 1);
+    }
     return { key: keys[0], keys };
+  }
+
+  // ---- requirement types -------------------------------------------------
+  // viewers list them, editors run validations and reset sequences,
+  // space administrators create, change and delete them and lock keys
+
+  @HttpCode(HttpStatus.OK)
+  @Post('types/list')
+  async listTypes(
+    @Body() dto: SpaceIdDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    await this.assertSpace(user, workspace, dto.spaceId, SpaceCaslAction.Read, SpaceCaslSubject.Page);
+    return this.typeService.list(dto.spaceId);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('types/create')
+  async createType(
+    @Body() dto: CreateRequirementTypeDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    await this.assertSpace(user, workspace, dto.spaceId, SpaceCaslAction.Manage, SpaceCaslSubject.Settings);
+    return this.typeService.create(dto, workspace.id);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('types/update')
+  async updateType(
+    @Body() dto: UpdateRequirementTypeDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    const type = await this.typeService.findById(dto.typeId, workspace.id);
+    await this.assertSpace(user, workspace, type.spaceId, SpaceCaslAction.Manage, SpaceCaslSubject.Settings);
+    const { typeId, ...fields } = dto;
+    return this.typeService.update(type, fields);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('types/delete')
+  async deleteType(
+    @Body() dto: RequirementTypeIdDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    const type = await this.typeService.findById(dto.typeId, workspace.id);
+    await this.assertSpace(user, workspace, type.spaceId, SpaceCaslAction.Manage, SpaceCaslSubject.Settings);
+    await this.typeService.delete(type);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('types/reset-sequence')
+  async resetTypeSequence(
+    @Body() dto: RequirementTypeIdDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    const type = await this.typeService.findById(dto.typeId, workspace.id);
+    await this.assertSpace(user, workspace, type.spaceId, SpaceCaslAction.Edit, SpaceCaslSubject.Page);
+    return this.typeService.resetSequence(type);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('types/validate')
+  async validateType(
+    @Body() dto: RequirementTypeIdDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    const type = await this.typeService.findById(dto.typeId, workspace.id);
+    await this.assertSpace(user, workspace, type.spaceId, SpaceCaslAction.Edit, SpaceCaslSubject.Page);
+    return this.typeService.revalidate(type.spaceId, type.id);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('types/lock-keys')
+  async lockKeys(
+    @Body() dto: LockKeysDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    await this.assertSpace(user, workspace, dto.spaceId, SpaceCaslAction.Manage, SpaceCaslSubject.Settings);
+    await this.typeService.setLockKeys(dto.spaceId, dto.lockKeys);
+    return { lockKeys: dto.lockKeys };
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('page-validation')
+  async pageValidation(
+    @Body() dto: PageIdDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    const page = await this.pageRepo.findById(dto.pageId);
+    if (!page || page.workspaceId !== workspace.id) {
+      throw new NotFoundException('Page not found');
+    }
+    await this.pageAccessService.validateCanView(page, user);
+    return {
+      items: await this.requirementRepo.findValidationIssues(page.id),
+    };
   }
 
   @HttpCode(HttpStatus.OK)

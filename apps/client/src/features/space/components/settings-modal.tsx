@@ -16,6 +16,7 @@ import { useTranslation } from "react-i18next";
 import { useAtom } from "jotai";
 import { workspaceAtom } from "@/features/user/atoms/current-user-atom.ts";
 import RequirementSettingsPanel from "@/features/requirement/components/requirement-settings-panel.tsx";
+import RequirementTypesPanel from "@/features/requirement/components/requirement-types-panel.tsx";
 
 interface SpaceSettingsModalProps {
   spaceId: string;
@@ -136,10 +137,20 @@ export default function SpaceSettingsModal({
                   <ScrollArea h={580} scrollbarSize={5} pr={8}>
                     <div style={{ paddingBottom: "100px" }}>
                       {space?.id && (
-                        <RequirementSettingsPanel
-                          spaceId={space.id}
-                          readOnly={!canManageSettings}
-                        />
+                        <>
+                          <RequirementSettingsPanel
+                            spaceId={space.id}
+                            readOnly={!canManageSettings}
+                          />
+                          <RequirementTypesPanel
+                            spaceId={space.id}
+                            canManage={canManageSettings}
+                            canEdit={spaceAbility.can(
+                              SpaceCaslAction.Manage,
+                              SpaceCaslSubject.Page,
+                            )}
+                          />
+                        </>
                       )}
                     </div>
                   </ScrollArea>

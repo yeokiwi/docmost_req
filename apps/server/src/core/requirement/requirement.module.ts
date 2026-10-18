@@ -6,6 +6,7 @@ import { RequirementIndexService } from './services/requirement-index.service';
 import { RequirementQueryService } from './services/requirement-query.service';
 import { RequirementBaselineService } from './services/requirement-baseline.service';
 import { CollaborationModule } from '../../collaboration/collaboration.module';
+import { RequirementTypeService } from './services/requirement-type.service';
 import { RequirementLinkTextService } from './services/requirement-link-text.service';
 import { RequirementTransferService } from './services/requirement-transfer.service';
 import { RequirementSettingsRepo } from './repos/requirement-settings.repo';
@@ -24,6 +25,7 @@ import { RequirementProcessor } from './requirement.processor';
     RequirementBaselineService,
     RequirementTransferService,
     RequirementLinkTextService,
+    RequirementTypeService,
     RequirementSettingsRepo,
     RequirementRepo,
     RequirementBaselineRepo,

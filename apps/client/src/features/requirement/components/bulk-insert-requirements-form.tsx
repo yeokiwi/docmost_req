@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button, Group, Stack, Text, TextInput } from "@mantine/core";
+import { Badge, Button, Group, Stack, Text, TextInput } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 
 export function buildBulkKeys(
@@ -30,12 +30,18 @@ export default function BulkInsertRequirementsForm({
   count,
   defaultPrefix,
   defaultNumber,
+  allowedPrefixes = null,
+  prefixSuggestions = [],
   onSubmit,
   onCancel,
 }: {
   count: number;
   defaultPrefix: string;
   defaultNumber: string;
+  // set when keys are locked: the only prefixes that may be used
+  allowedPrefixes?: string[] | null;
+  // requirement types: clicking one fills in its prefix and next number
+  prefixSuggestions?: { prefix: string; number: string; label: string }[];
   onSubmit: (prefix: string, first: string) => void;
   onCancel: () => void;
 }) {
@@ -43,7 +49,11 @@ export default function BulkInsertRequirementsForm({
   const [prefix, setPrefix] = useState(defaultPrefix);
   const [first, setFirst] = useState(defaultNumber);
 
-  const problem = validateBulkKeyParts(prefix, first);
+  const locked =
+    !!allowedPrefixes &&
+    !!prefix.trim() &&
+    !allowedPrefixes.includes(prefix.trim().toUpperCase());
+  const problem = validateBulkKeyParts(prefix, first) ?? (locked ? "locked" : null);
   const preview = problem ? [] : buildBulkKeys(prefix.trim(), first, count);
 
   return (
@@ -64,7 +74,9 @@ export default function BulkInsertRequirementsForm({
               ? t("Enter a prefix")
               : problem === "slash"
                 ? t("A key cannot contain / or \\")
-                : undefined
+                : problem === "locked"
+                  ? t("Keys are locked: use the prefix of a requirement type")
+                  : undefined
           }
           ff="monospace"
           data-autofocus
@@ -78,6 +90,26 @@ export default function BulkInsertRequirementsForm({
           ff="monospace"
         />
       </Group>
+      {prefixSuggestions.length > 0 && (
+        <Group gap={6}>
+          {prefixSuggestions.map((s) => (
+            <Badge
+              key={s.prefix}
+              variant="light"
+              radius="sm"
+              tt="none"
+              style={{ cursor: "pointer" }}
+              onClick={() => {
+                setPrefix(s.prefix);
+                setFirst(s.number);
+              }}
+            >
+              {s.label} · {s.prefix}
+              {s.number}
+            </Badge>
+          ))}
+        </Group>
+      )}
       {preview.length > 0 && (
         <Text size="xs" c="dimmed" ff="monospace">
           {preview.length > 3
