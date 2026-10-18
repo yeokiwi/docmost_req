@@ -92,7 +92,7 @@ describe('collectRequirementsFromPmJson', () => {
         key: 'SYS-001',
         spaceId: null,
         sourceKey: 'SYS-002',
-        relation: null,
+        relation: 'Dependency',
       },
       {
         nodeId: 'r2',
@@ -309,6 +309,97 @@ describe('requirement properties', () => {
     expect(requirements[0].properties).toEqual({ Release: '1.0', Owner: 'Ann' });
     // the block's own value wins over the page-wide one
     expect(requirements[1].properties).toEqual({ Release: '2.0' });
+  });
+});
+
+describe('vertical tables and titles', () => {
+  const th = (text: string, extra: any[] = []) => ({
+    type: 'tableHeader',
+    content: [{ type: 'paragraph', content: [{ type: 'text', text }, ...extra] }],
+  });
+  const td = (content: any[]) => ({ type: 'tableCell', content });
+  const row = (...cells: any[]) => ({ type: 'tableRow', content: cells });
+  const table = (...rows: any[]) => ({ type: 'table', content: rows });
+
+  const vertical = table(
+    row(th('Requirement ID'), td([req('AUTO-BR-001', 'v', [p('')], { title: '' })])),
+    row(th('Description'), td([p('Safety Compliance: comply with regulations')])),
+    row(th('Owner'), td([p('John')])),
+    row(th('Relates'), td([{ type: 'paragraph', content: [ref('BR-09', 'r9')] }])),
+  );
+
+  it('reads a vertical table as one requirement with its rows as properties', () => {
+    const { requirements, refs } = collectRequirementsFromPmJson({
+      type: 'doc',
+      content: [vertical],
+    });
+    expect(requirements).toHaveLength(1);
+    expect(requirements[0]).toMatchObject({
+      key: 'AUTO-BR-001',
+      title: 'Safety Compliance: comply with regulations',
+      properties: {
+        Description: 'Safety Compliance: comply with regulations',
+        Owner: 'John',
+      },
+    });
+    expect(refs).toEqual([
+      expect.objectContaining({ key: 'BR-09', sourceKey: 'AUTO-BR-001', relation: 'Relates' }),
+    ]);
+  });
+
+  it('makes the requirements after a vertical table its children', () => {
+    const { refs } = collectRequirementsFromPmJson({
+      type: 'doc',
+      content: [
+        p('intro'),
+        req('BEFORE-1', 'b', [p('')]),
+        vertical,
+        req('AUTO-FN-001', 'c1', [p('')]),
+        req('AUTO-FN-002', 'c2', [p('')]),
+      ],
+    });
+    const auto = refs.filter((r) => r.nodeId.startsWith('auto:'));
+    expect(auto.map((r) => [r.sourceKey, r.key])).toEqual([
+      ['AUTO-FN-001', 'AUTO-BR-001'],
+      ['AUTO-FN-002', 'AUTO-BR-001'],
+    ]);
+  });
+
+  it('drops the automatic link when the child already links to the parent', () => {
+    const { refs } = collectRequirementsFromPmJson({
+      type: 'doc',
+      content: [
+        vertical,
+        req('AUTO-FN-001', 'c1', [{ type: 'paragraph', content: [ref('AUTO-BR-001', 'x')] }]),
+      ],
+    });
+    expect(refs.filter((r) => r.sourceKey === 'AUTO-FN-001')).toEqual([
+      expect.objectContaining({ nodeId: 'x', relation: 'Dependency' }),
+    ]);
+  });
+
+  it('uses the Title column (or one called Description) as the requirement text', () => {
+    const marker = {
+      type: 'requirementProperty',
+      attrs: { name: '', value: '', title: true },
+    };
+    const doc = {
+      type: 'doc',
+      content: [
+        table(
+          row(th('Requirement'), th('Summary', [marker]), th('Owner')),
+          row(
+            td([req('FN-01', 'a', [p('')], { title: '' })]),
+            td([p('Autonomous navigation in cities')]),
+            td([p('Ann')]),
+          ),
+        ),
+      ],
+    };
+    const [r] = collectRequirementsFromPmJson(doc).requirements;
+    expect(r.title).toBe('Autonomous navigation in cities');
+    expect(r.description).toBe('Autonomous navigation in cities');
+    expect(r.properties.Summary).toBe('Autonomous navigation in cities');
   });
 });
 

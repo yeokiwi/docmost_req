@@ -1,10 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectKysely } from 'nestjs-kysely';
 import { sql } from 'kysely';
 import { KyselyDB } from '@docmost/db/types/kysely.types';
 import { PagePermissionRepo } from '@docmost/db/repos/page/page-permission.repo';
 import { Requirement } from '@docmost/db/types/entity.types';
 import { RequirementFilterDto } from '../dto/requirement.dto';
+import {
+  parseRequirementQuery,
+  QueryClause,
+  toLikePattern,
+} from '../utils/requirement-query.parser';
 
 // Upper bound on rows scanned per query before page-access filtering.
 export const MAX_REQUIREMENT_SCAN = 5000;
@@ -36,6 +41,62 @@ export class RequirementQueryService {
     @InjectKysely() private readonly db: KyselyDB,
     private readonly pagePermissionRepo: PagePermissionRepo,
   ) {}
+
+  /** One search clause as a SQL condition on the current requirement row. */
+  private clauseSql(clause: QueryClause) {
+    const negate = clause.op === '!=' || clause.op === '!~';
+    const pattern = clause.op === '~' || clause.op === '!~';
+    const value = clause.value;
+    // = compares case-insensitively; ~ is a LIKE pattern where % is the wildcard
+    const match = (column: any) =>
+      pattern
+        ? sql<boolean>`${column} ilike ${toLikePattern(value)}`
+        : sql<boolean>`lower(${column}) = lower(${value})`;
+
+    let condition;
+    switch (clause.field.kind) {
+      case 'key':
+        condition = match(sql.ref('requirements.key'));
+        break;
+      case 'title':
+        condition = match(sql.ref('requirements.title'));
+        break;
+      case 'page':
+        condition = match(sql.ref('pages.title'));
+        break;
+      case 'text': {
+        // text searches the title and description; = means "contains"
+        const like = pattern ? toLikePattern(value) : `%${toLikePattern(value)}%`;
+        condition = sql<boolean>`(${sql.ref('requirements.title')} ilike ${like} or ${sql.ref('requirements.description')} ilike ${like})`;
+        break;
+      }
+      case 'property':
+        condition = match(sql`(${sql.ref('requirements.properties')} ->> ${clause.field.name})`);
+        break;
+      case 'to':
+      case 'from': {
+        const rel = clause.field.relation;
+        const relation = rel
+          ? sql`and lower(rl.relation) = lower(${rel})`
+          : sql``;
+        // TO/PARENT: rows that reference the value; FROM/CHILD: rows the value references
+        condition =
+          clause.field.kind === 'to'
+            ? sql<boolean>`exists (
+                select 1 from requirement_links rl
+                where rl.source_space_id = ${sql.ref('requirements.spaceId')}
+                  and rl.source_key = ${sql.ref('requirements.key')}
+                  and ${match(sql.ref('rl.target_key'))} ${relation})`
+            : sql<boolean>`exists (
+                select 1 from requirement_links rl
+                where rl.target_space_id = ${sql.ref('requirements.spaceId')}
+                  and rl.target_key = ${sql.ref('requirements.key')}
+                  and ${match(sql.ref('rl.source_key'))} ${relation})`;
+        break;
+      }
+    }
+    return negate ? sql<boolean>`not coalesce(${condition}, false)` : condition;
+  }
 
   private buildQuery(spaceId: string, filter: RequirementFilterDto = {}) {
     let query = this.db
@@ -115,6 +176,18 @@ export class RequirementQueryService {
 
     if (filter.pageId) {
       query = query.where('requirements.pageId', '=', filter.pageId);
+    }
+
+    if (filter.query?.trim()) {
+      let clauses: QueryClause[];
+      try {
+        clauses = parseRequirementQuery(filter.query);
+      } catch (err) {
+        throw new BadRequestException((err as Error).message);
+      }
+      for (const clause of clauses) {
+        query = query.where(this.clauseSql(clause));
+      }
     }
 
     if (filter.validation === 'error' || filter.validation === 'warning' || filter.validation === 'valid') {
@@ -407,5 +480,104 @@ export class RequirementQueryService {
       truncated:
         rows.length >= MAX_MATRIX_SIDE || columns.length >= MAX_MATRIX_SIDE,
     };
+  }
+
+  /**
+   * Pages of the space whose links point to requirements that no longer
+   * exist (deleted, or never defined), with the missing keys.
+   */
+  async brokenLinks(spaceId: string, userId: string) {
+    const rows = await this.db
+      .selectFrom('requirementLinks')
+      .innerJoin('pages', 'pages.id', 'requirementLinks.sourcePageId')
+      .select([
+        'requirementLinks.sourcePageId as pageId',
+        'requirementLinks.targetKey as key',
+        'pages.title as title',
+        'pages.slugId as slugId',
+      ])
+      .where('requirementLinks.sourceSpaceId', '=', spaceId)
+      .where('pages.deletedAt', 'is', null)
+      .where(
+        sql<boolean>`not exists (
+          select 1 from requirements r
+          where r.space_id = ${sql.ref('requirementLinks.targetSpaceId')}
+            and r.key = ${sql.ref('requirementLinks.targetKey')}
+            and r.deleted_at is null
+            and r.is_conflict = false
+        )`,
+      )
+      .orderBy('pages.title')
+      .limit(MAX_REQUIREMENT_SCAN)
+      .execute();
+
+    const accessible = new Set(
+      await this.pagePermissionRepo.filterAccessiblePageIds({
+        pageIds: [...new Set(rows.map((r) => r.pageId))],
+        userId,
+        spaceId,
+      }),
+    );
+    const byPage = new Map<
+      string,
+      { pageId: string; title: string | null; slugId: string; keys: string[] }
+    >();
+    for (const r of rows) {
+      if (!accessible.has(r.pageId)) continue;
+      const entry = byPage.get(r.pageId) ?? {
+        pageId: r.pageId,
+        title: r.title,
+        slugId: r.slugId,
+        keys: [],
+      };
+      if (!entry.keys.includes(r.key)) entry.keys.push(r.key);
+      byPage.set(r.pageId, entry);
+    }
+    return [...byPage.values()];
+  }
+
+  /** Requirements whose key starts with `query`, across the given spaces. */
+  async searchKeys(opts: {
+    query: string;
+    spaceIds: string[];
+    preferSpaceId?: string;
+    limit: number;
+    userId: string;
+  }) {
+    if (!opts.spaceIds.length) return [];
+    const rows = await this.db
+      .selectFrom('requirements')
+      .innerJoin('spaces', 'spaces.id', 'requirements.spaceId')
+      .innerJoin('pages', 'pages.id', 'requirements.pageId')
+      .select([
+        'requirements.id',
+        'requirements.key',
+        'requirements.title',
+        'requirements.spaceId',
+        'requirements.pageId',
+        'spaces.name as spaceName',
+        'spaces.slug as spaceSlug',
+      ])
+      .where('requirements.spaceId', 'in', opts.spaceIds)
+      .where('requirements.deletedAt', 'is', null)
+      .where('requirements.isConflict', '=', false)
+      .where('pages.deletedAt', 'is', null)
+      .where(
+        sql<boolean>`${sql.ref('requirements.key')} ilike ${toLikePattern(opts.query.trim()) + '%'}`,
+      )
+      .orderBy(
+        sql`case when ${sql.ref('requirements.spaceId')} = ${opts.preferSpaceId ?? null} then 0 else 1 end`,
+      )
+      .orderBy('requirements.key')
+      .limit(opts.limit * 3)
+      .execute();
+
+    const accessible = new Set(
+      await this.pagePermissionRepo.filterAccessiblePageIds({
+        pageIds: [...new Set(rows.map((r) => r.pageId))],
+        userId: opts.userId,
+      }),
+    );
+    return rows.filter((r) => accessible.has(r.pageId)).slice(0, opts.limit);
   }
 }

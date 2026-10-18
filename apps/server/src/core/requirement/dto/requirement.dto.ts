@@ -98,6 +98,12 @@ export class RequirementFilterDto {
   @MaxLength(64)
   keyPrefix?: string;
 
+  // search syntax, e.g. key ~ 'BR-%' AND PARENT@refines = 'REQ-001'
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  query?: string;
+
   @IsOptional()
   @IsObject()
   properties?: Record<string, string>;
@@ -374,4 +380,32 @@ export class LockKeysDto {
 
   @IsBoolean()
   lockKeys: boolean;
+}
+
+export class BaselineItemDto {
+  @IsUUID()
+  baselineId: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(128)
+  key: string;
+}
+
+export class SearchKeysDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(128)
+  query: string;
+
+  // results from this space come first
+  @IsOptional()
+  @IsUUID()
+  spaceId?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  limit?: number;
 }

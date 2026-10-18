@@ -79,6 +79,35 @@ export const RequirementRef = Node.create<
         renderHTML: (attrs) =>
           attrs.spaceId ? { "data-space-id": attrs.spaceId } : {},
       },
+      // properties of the target shown next to the link in view mode
+      displayProperties: {
+        default: [],
+        parseHTML: (el) => {
+          try {
+            const v = JSON.parse(el.getAttribute("data-display-properties") || "[]");
+            return Array.isArray(v) ? v : [];
+          } catch {
+            return [];
+          }
+        },
+        renderHTML: (attrs) =>
+          attrs.displayProperties?.length
+            ? { "data-display-properties": JSON.stringify(attrs.displayProperties) }
+            : {},
+      },
+      // link to the requirement as captured in a baseline instead of its current version
+      baselineId: {
+        default: null,
+        parseHTML: (el) => el.getAttribute("data-baseline-id"),
+        renderHTML: (attrs) =>
+          attrs.baselineId ? { "data-baseline-id": attrs.baselineId } : {},
+      },
+      baselineLabel: {
+        default: null,
+        parseHTML: (el) => el.getAttribute("data-baseline-label"),
+        renderHTML: (attrs) =>
+          attrs.baselineLabel ? { "data-baseline-label": attrs.baselineLabel } : {},
+      },
     };
   },
 

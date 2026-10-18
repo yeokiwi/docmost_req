@@ -31,6 +31,8 @@ import {
 import { PageAccessService } from '../page/page-access/page-access.service';
 import {
   AllocateKeyDto,
+  BaselineItemDto,
+  SearchKeysDto,
   CreateRequirementTypeDto,
   LockKeysDto,
   RequirementTypeIdDto,
@@ -51,6 +53,8 @@ import {
 import { RequirementSettingsService } from './services/requirement-settings.service';
 import { RequirementQueryService } from './services/requirement-query.service';
 import { RequirementBaselineService } from './services/requirement-baseline.service';
+import { RequirementBaselineRepo } from './repos/requirement-baseline.repo';
+import { SpaceMemberRepo } from '@docmost/db/repos/space/space-member.repo';
 import { RequirementTypeService } from './services/requirement-type.service';
 import { RequirementLinkTextService } from './services/requirement-link-text.service';
 import { RequirementTransferService } from './services/requirement-transfer.service';
@@ -68,6 +72,8 @@ export class RequirementController {
     private readonly transferService: RequirementTransferService,
     private readonly linkTextService: RequirementLinkTextService,
     private readonly typeService: RequirementTypeService,
+    private readonly baselineRepo: RequirementBaselineRepo,
+    private readonly spaceMemberRepo: SpaceMemberRepo,
     private readonly requirementRepo: RequirementRepo,
     private readonly spaceAbility: SpaceAbilityFactory,
     private readonly spaceRepo: SpaceRepo,
@@ -430,6 +436,52 @@ export class RequirementController {
     );
     await this.baselineService.delete(baseline);
     return { success: true };
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('baselines/item')
+  async baselineItem(
+    @Body() dto: BaselineItemDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    const baseline = await this.baselineService.getBaseline(dto.baselineId, workspace.id);
+    await this.assertSpace(user, workspace, baseline.spaceId, SpaceCaslAction.Read, SpaceCaslSubject.Page);
+    const item = await this.baselineRepo.findItem(baseline.id, dto.key.toUpperCase());
+    if (!item) {
+      throw new NotFoundException(`${dto.key} is not in baseline v${baseline.version}`);
+    }
+    return { baseline, item };
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('broken-links')
+  async brokenLinks(
+    @Body() dto: SpaceIdDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    await this.assertSpace(user, workspace, dto.spaceId, SpaceCaslAction.Read, SpaceCaslSubject.Page);
+    return { items: await this.queryService.brokenLinks(dto.spaceId, user.id) };
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('search-keys')
+  async searchKeys(
+    @Body() dto: SearchKeysDto,
+    @AuthUser() user: User,
+  ) {
+    // every space the user belongs to, so links can point across spaces
+    const spaceIds = await this.spaceMemberRepo.getUserSpaceIds(user.id);
+    return {
+      items: await this.queryService.searchKeys({
+        query: dto.query,
+        spaceIds,
+        preferSpaceId: dto.spaceId,
+        limit: dto.limit ?? 10,
+        userId: user.id,
+      }),
+    };
   }
 
   @HttpCode(HttpStatus.OK)

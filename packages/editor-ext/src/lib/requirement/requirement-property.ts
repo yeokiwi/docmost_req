@@ -19,6 +19,8 @@ export interface RequirementPropertyAttributes {
   wholeDocument?: boolean;
   ignoreProperties?: boolean;
   ignoreDependencies?: boolean;
+  // in a heading: the column holds the requirement's headline
+  title?: boolean;
 }
 
 declare module "@tiptap/core" {
@@ -75,6 +77,7 @@ export const RequirementProperty = Node.create<RequirementPropertyOptions>({
       wholeDocument: boolAttr("data-whole-document"),
       ignoreProperties: boolAttr("data-ignore-properties"),
       ignoreDependencies: boolAttr("data-ignore-dependencies"),
+      title: boolAttr("data-title"),
     };
   },
 
@@ -116,6 +119,7 @@ export const RequirementProperty = Node.create<RequirementPropertyOptions>({
               wholeDocument: !!attributes.wholeDocument,
               ignoreProperties: !!attributes.ignoreProperties,
               ignoreDependencies: !!attributes.ignoreDependencies,
+              title: !!attributes.title,
             },
           }),
     };

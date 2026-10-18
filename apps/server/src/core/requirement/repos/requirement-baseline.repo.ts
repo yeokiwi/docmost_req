@@ -93,6 +93,15 @@ export class RequirementBaselineRepo {
     }
   }
 
+  async findItem(baselineId: string, key: string) {
+    return this.db
+      .selectFrom('requirementBaselineItems')
+      .selectAll()
+      .where('baselineId', '=', baselineId)
+      .where('key', '=', key)
+      .executeTakeFirst();
+  }
+
   async findItems(baselineId: string): Promise<RequirementBaselineItem[]> {
     return this.db
       .selectFrom('requirementBaselineItems')
