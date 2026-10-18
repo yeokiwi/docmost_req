@@ -31,6 +31,7 @@ import {
 import { PageAccessService } from '../page/page-access/page-access.service';
 import {
   AllocateKeyDto,
+  LinkKeyOccurrencesDto,
   BaselineIdDto,
   CompareBaselinesDto,
   ConfirmImportDto,
@@ -46,6 +47,7 @@ import {
 import { RequirementSettingsService } from './services/requirement-settings.service';
 import { RequirementQueryService } from './services/requirement-query.service';
 import { RequirementBaselineService } from './services/requirement-baseline.service';
+import { RequirementLinkTextService } from './services/requirement-link-text.service';
 import { RequirementTransferService } from './services/requirement-transfer.service';
 import { RequirementRepo } from './repos/requirement.repo';
 
@@ -59,6 +61,7 @@ export class RequirementController {
     private readonly queryService: RequirementQueryService,
     private readonly baselineService: RequirementBaselineService,
     private readonly transferService: RequirementTransferService,
+    private readonly linkTextService: RequirementLinkTextService,
     private readonly requirementRepo: RequirementRepo,
     private readonly spaceAbility: SpaceAbilityFactory,
     private readonly spaceRepo: SpaceRepo,
@@ -133,6 +136,28 @@ export class RequirementController {
       dto.count ?? 1,
     );
     return { key: keys[0], keys };
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('link-key-occurrences')
+  async linkKeyOccurrences(
+    @Body() dto: LinkKeyOccurrencesDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    await this.assertSpace(
+      user,
+      workspace,
+      dto.spaceId,
+      SpaceCaslAction.Edit,
+      SpaceCaslSubject.Page,
+    );
+    return this.linkTextService.linkKeyInSpace({
+      spaceId: dto.spaceId,
+      key: dto.key.trim(),
+      excludePageId: dto.excludePageId,
+      user,
+    });
   }
 
   @HttpCode(HttpStatus.OK)

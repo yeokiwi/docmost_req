@@ -12,6 +12,7 @@ import {
   Matches,
   Max,
   MaxLength,
+  MinLength,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -246,4 +247,18 @@ export class ConfirmImportDto {
   @ValidateNested({ each: true })
   @Type(() => ImportRequirementRowDto)
   rows: ImportRequirementRowDto[];
+}
+
+export class LinkKeyOccurrencesDto {
+  @IsUUID()
+  spaceId: string;
+
+  @IsString()
+  @MinLength(1)
+  @MaxLength(128)
+  key: string;
+
+  @IsOptional()
+  @IsUUID()
+  excludePageId?: string;
 }

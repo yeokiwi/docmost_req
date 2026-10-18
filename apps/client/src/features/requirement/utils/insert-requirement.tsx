@@ -8,6 +8,7 @@ import {
   allocateRequirementKeys,
   getRequirementSettings,
 } from "../services/requirement-service";
+import { convertSelectedKeys, openTransformDialog } from "./convert-keys";
 import BulkInsertRequirementsForm, {
   buildBulkKeys,
 } from "../components/bulk-insert-requirements-form";
@@ -26,12 +27,17 @@ function showError(err: unknown) {
 }
 
 /**
- * Alt+Shift+R: with several table cells or paragraphs selected, turn each into
- * its own requirement (after asking for a prefix and first number); otherwise
- * insert a single requirement.
+ * Alt+Shift+R: typed keys in the selection become requirements; a key inside
+ * text opens the transform dialog; several empty cells or paragraphs get new
+ * keys (after asking for a prefix and first number); otherwise a single
+ * requirement is inserted.
  */
 export function insertRequirementFromShortcut(editor: Editor): boolean {
   if (!editor.isEditable) return false;
+  // keys that are already typed become requirements with those keys
+  if (convertSelectedKeys(editor)) return true;
+  // a key selected inside running text: link/transform dialog
+  if (openTransformDialog(editor)) return true;
   if (bulkTargets(editor).length > 0) {
     openBulkInsertDialog(editor);
   } else {

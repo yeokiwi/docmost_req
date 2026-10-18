@@ -8,6 +8,8 @@ import {
 import { setYjsMark, updateYjsMarkAttribute, YjsSelection } from './yjs.util';
 import * as Y from 'yjs';
 import { User } from '@docmost/db/types/entity.types';
+import { v7 as uuid7 } from 'uuid';
+import { linkKeyInPmJson } from '../core/requirement/utils/requirement-link-text.util';
 
 export type CollabEventHandlers = ReturnType<
   CollaborationHandler['getHandlers']
@@ -83,6 +85,36 @@ export class CollaborationHandler {
               { name: 'commentId', value: commentId },
               { resolved },
             );
+          },
+        );
+      },
+      // turns typed occurrences of a requirement key into links, on the live document
+      linkRequirementKey: async (
+        documentName: string,
+        payload: { key: string; spaceId: string | null; user: User },
+      ) => {
+        const { key, spaceId, user } = payload;
+        await this.withYdocConnection(
+          hocuspocus,
+          documentName,
+          { user },
+          (doc) => {
+            const json = TiptapTransformer.fromYdoc(doc, 'default');
+            const { doc: next, count } = linkKeyInPmJson(
+              json,
+              key,
+              spaceId,
+              uuid7,
+            );
+            if (!count) return;
+            const fragment = doc.getXmlFragment('default');
+            if (fragment.length > 0) fragment.delete(0, fragment.length);
+            const newDoc = TiptapTransformer.toYdoc(
+              next,
+              'default',
+              tiptapExtensions,
+            );
+            Y.applyUpdate(doc, Y.encodeStateAsUpdate(newDoc));
           },
         );
       },

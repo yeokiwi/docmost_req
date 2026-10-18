@@ -5,6 +5,8 @@ import { RequirementSettingsService } from './services/requirement-settings.serv
 import { RequirementIndexService } from './services/requirement-index.service';
 import { RequirementQueryService } from './services/requirement-query.service';
 import { RequirementBaselineService } from './services/requirement-baseline.service';
+import { CollaborationModule } from '../../collaboration/collaboration.module';
+import { RequirementLinkTextService } from './services/requirement-link-text.service';
 import { RequirementTransferService } from './services/requirement-transfer.service';
 import { RequirementSettingsRepo } from './repos/requirement-settings.repo';
 import { RequirementRepo } from './repos/requirement.repo';
@@ -13,7 +15,7 @@ import { RequirementListener } from './requirement.listener';
 import { RequirementProcessor } from './requirement.processor';
 
 @Module({
-  imports: [PageModule],
+  imports: [PageModule, CollaborationModule],
   controllers: [RequirementController],
   providers: [
     RequirementSettingsService,
@@ -21,6 +23,7 @@ import { RequirementProcessor } from './requirement.processor';
     RequirementQueryService,
     RequirementBaselineService,
     RequirementTransferService,
+    RequirementLinkTextService,
     RequirementSettingsRepo,
     RequirementRepo,
     RequirementBaselineRepo,

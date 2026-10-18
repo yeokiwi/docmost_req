@@ -56,6 +56,18 @@ export async function allocateRequirementKeys(
   return req.data.keys;
 }
 
+export async function linkKeyOccurrences(params: {
+  spaceId: string;
+  key: string;
+  excludePageId?: string;
+}): Promise<{ pages: number }> {
+  const req = await api.post<{ pages: number }>(
+    "/requirements/link-key-occurrences",
+    params,
+  );
+  return req.data;
+}
+
 export async function listRequirements(params: {
   spaceId: string;
   filter?: IRequirementFilter;

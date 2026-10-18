@@ -87,8 +87,20 @@ describe('collectRequirementsFromPmJson', () => {
     };
     const { refs } = collectRequirementsFromPmJson(doc);
     expect(refs).toEqual([
-      { nodeId: 'r1', key: 'SYS-001', spaceId: null, sourceKey: 'SYS-002' },
-      { nodeId: 'r2', key: 'SYS-002', spaceId: 'space-b', sourceKey: null },
+      {
+        nodeId: 'r1',
+        key: 'SYS-001',
+        spaceId: null,
+        sourceKey: 'SYS-002',
+        relation: null,
+      },
+      {
+        nodeId: 'r2',
+        key: 'SYS-002',
+        spaceId: 'space-b',
+        sourceKey: null,
+        relation: null,
+      },
     ]);
   });
 
@@ -140,8 +152,79 @@ describe('collectRequirementsFromPmJson', () => {
     const { requirements, refs } = collectRequirementsFromPmJson(doc);
     expect(requirements).toEqual([]);
     expect(refs).toEqual([
-      { nodeId: 'r', key: 'SYS-001', spaceId: null, sourceKey: null },
+      {
+        nodeId: 'r',
+        key: 'SYS-001',
+        spaceId: null,
+        sourceKey: null,
+        relation: null,
+      },
     ]);
+  });
+});
+
+describe('requirement links in tables', () => {
+  const cell = (type: string, content: any[], attrs: any = {}) => ({
+    type,
+    attrs,
+    content,
+  });
+  const row = (...cells: any[]) => ({ type: 'tableRow', content: cells });
+  const table = (...rows: any[]) => ({ type: 'table', content: rows });
+
+  it('names a link after its column and attributes it to the row requirement', () => {
+    const doc = {
+      type: 'doc',
+      content: [
+        table(
+          row(
+            cell('tableHeader', [p('Requirement')]),
+            cell('tableHeader', [p('Description')]),
+            cell('tableHeader', [p('Relates')]),
+          ),
+          row(
+            cell('tableCell', [req('FN-01', 'a', [p('')])]),
+            cell('tableCell', [p('Does things')]),
+            cell('tableCell', [
+              { type: 'paragraph', content: [ref('BR-01', 'r1')] },
+            ]),
+          ),
+        ),
+      ],
+    };
+    const { refs } = collectRequirementsFromPmJson(doc);
+    expect(refs).toEqual([
+      expect.objectContaining({
+        key: 'BR-01',
+        sourceKey: 'FN-01',
+        relation: 'Relates',
+      }),
+    ]);
+  });
+
+  it('treats a first row that defines requirements as data, not titles', () => {
+    const doc = {
+      type: 'doc',
+      content: [
+        table(
+          row(
+            cell('tableCell', [req('FN-01', 'a', [p('')])]),
+            cell('tableCell', [{ type: 'paragraph', content: [ref('BR-01', 'r1')] }]),
+          ),
+        ),
+      ],
+    };
+    const { refs } = collectRequirementsFromPmJson(doc);
+    expect(refs[0]).toMatchObject({ sourceKey: 'FN-01', relation: null });
+  });
+
+  it('keeps refs outside requirements and tables unnamed', () => {
+    const doc = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [ref('BR-01', 'r1')] }],
+    };
+    const { refs } = collectRequirementsFromPmJson(doc);
+    expect(refs[0]).toMatchObject({ sourceKey: null, relation: null });
   });
 });
 

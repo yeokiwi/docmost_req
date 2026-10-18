@@ -1760,5 +1760,20 @@
   "A key cannot contain / or \\": "A key cannot contain / or \\",
   "First number": "First number",
   "Use leading zeros to keep keys sorted.": "Use leading zeros to keep keys sorted.",
-  "Enter a number": "Enter a number"
+  "Enter a number": "Enter a number",
+  "Turn keys into requirements": "Turn keys into requirements",
+  "This will turn {{count}} typed keys into requirements ({{keys}}).": "This will turn {{count}} typed keys into requirements ({{keys}}).",
+  "Transform {{key}}": "Transform {{key}}",
+  "{{key}} transformed": "{{key}} transformed",
+  "Linked {{key}} on {{count}} other pages": "Linked {{key}} on {{count}} other pages",
+  "Could not link {{key}} on other pages": "Could not link {{key}} on other pages",
+  "\"{{key}}\" will become a requirement.": "\"{{key}}\" will become a requirement.",
+  "\"{{key}}\" will become a link to the requirement.": "\"{{key}}\" will become a link to the requirement.",
+  "Make links for every \"{{key}}\" on this page.": "Make links for every \"{{key}}\" on this page.",
+  "Make links for every \"{{key}}\" in this space.": "Make links for every \"{{key}}\" in this space.",
+  "Create similar definitions for all keys matching the pattern below on this page{{count}}.": "Create similar definitions for all keys matching the pattern below on this page{{count}}.",
+  "about {{count}} other occurrences": "about {{count}} other occurrences",
+  "Pattern": "Pattern",
+  "A regular expression that must match the complete key.": "A regular expression that must match the complete key.",
+  "Invalid regular expression": "Invalid regular expression"
 }

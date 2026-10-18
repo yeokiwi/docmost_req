@@ -127,6 +127,7 @@ export class RequirementIndexService {
             : page.spaceId,
         targetKey: ref.key,
         nodeId: ref.nodeId,
+        relation: ref.relation,
       }));
       await this.requirementRepo.replaceLinksForPage(pageId, links, trx);
     });

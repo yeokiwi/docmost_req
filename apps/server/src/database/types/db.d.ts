@@ -795,6 +795,7 @@ export interface RequirementLinks {
   targetSpaceId: string;
   targetKey: string;
   nodeId: string;
+  relation: string | null;
   createdAt: Generated<Timestamp>;
 }
 

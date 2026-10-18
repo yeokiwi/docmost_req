@@ -213,7 +213,15 @@ export default function RequirementDetailDrawer({
           ) : (
             <Stack gap={4}>
               {data.dependsOn.map((dep) => (
-                <Group key={`${dep.targetSpaceId}:${dep.targetKey}`} gap="xs">
+                <Group
+                  key={`${dep.targetSpaceId}:${dep.targetKey}:${dep.relation ?? ""}`}
+                  gap="xs"
+                >
+                  {dep.relation && (
+                    <Text size="sm" c="dimmed">
+                      {dep.relation} →
+                    </Text>
+                  )}
                   <Badge
                     variant="light"
                     radius="sm"
@@ -246,7 +254,15 @@ export default function RequirementDetailDrawer({
           ) : (
             <Stack gap={4}>
               {data.referencedByRequirements.map((l) => (
-                <Group key={`${l.sourcePageId}:${l.sourceKey}`} gap="xs">
+                <Group
+                  key={`${l.sourcePageId}:${l.sourceKey}:${l.relation ?? ""}`}
+                  gap="xs"
+                >
+                  {l.relation && (
+                    <Text size="sm" c="dimmed">
+                      {l.relation} ←
+                    </Text>
+                  )}
                   <Badge
                     variant="light"
                     radius="sm"

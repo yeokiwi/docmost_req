@@ -54,6 +54,8 @@ export interface IRequirementLinkSource {
   sourcePageId: string;
   sourceSpaceId: string;
   sourceKey: string | null;
+  // name of the relationship (the table column title), when the link has one
+  relation?: string | null;
   pageTitle: string | null;
   pageSlugId: string;
 }
@@ -64,6 +66,7 @@ export interface IRequirementDependency {
   targetId: string | null;
   targetTitle: string | null;
   targetPageId: string | null;
+  relation?: string | null;
 }
 
 export interface IRequirementDetail {
@@ -90,6 +93,8 @@ export interface ITraceabilityMatrix {
   rows: ITraceabilityItem[];
   columns: ITraceabilityItem[];
   cells: Array<[string, string]>;
+  // [row key, column key, relationship name] for links named by a table column
+  cellRelations?: Array<[string, string, string]>;
   pageRefs: ITraceabilityPageRef[];
   truncated: boolean;
 }

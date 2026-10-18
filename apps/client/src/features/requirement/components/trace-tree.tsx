@@ -74,6 +74,11 @@ export default function TraceTree({ space }: { space: ISpace }) {
       children.set(col, [...(children.get(col) ?? []), row]);
       hasParent.add(row);
     }
+    // relationship name per [child, parent] edge
+    const relations = new Map<string, string>();
+    for (const [row, col, relation] of matrix?.cellRelations ?? []) {
+      relations.set(`${row}|${col}`, relation);
+    }
     const pageRefs = new Map<string, NonNullable<typeof matrix>["pageRefs"]>();
     for (const ref of matrix?.pageRefs ?? []) {
       pageRefs.set(ref.key, [...(pageRefs.get(ref.key) ?? []), ref]);
@@ -82,7 +87,7 @@ export default function TraceTree({ space }: { space: ISpace }) {
     const unique = (list?.items ?? []).filter((r) =>
       prefix ? r.key.toLowerCase().startsWith(prefix) : !hasParent.has(r.key),
     );
-    return { info, children, pageRefs, roots: unique };
+    return { info, children, relations, pageRefs, roots: unique };
   }, [matrix, list, dStart]);
 
   const toggle = (id: string) =>
@@ -123,7 +128,11 @@ export default function TraceTree({ space }: { space: ISpace }) {
     key: string,
     path: string,
     depth: number,
+    parentKey?: string,
   ): React.ReactNode[] => {
+    const relation = parentKey
+      ? model.relations.get(`${key}|${parentKey}`)
+      : undefined;
     const info = model.info.get(key);
     const kids = model.children.get(key) ?? [];
     const open = expanded.has(path);
@@ -149,6 +158,11 @@ export default function TraceTree({ space }: { space: ISpace }) {
               </ActionIcon>
             ) : (
               <span style={{ width: 22, display: "inline-block" }} />
+            )}
+            {relation && (
+              <Text size="xs" c="dimmed" fs="italic">
+                {relation}
+              </Text>
             )}
             <RequirementKey value={key} onClick={() => setSelected(key)} />
             <Text size="sm" truncate maw={320}>
@@ -217,7 +231,7 @@ export default function TraceTree({ space }: { space: ISpace }) {
     if (open && depth < MAX_DEPTH) {
       for (const k of kids) {
         if (path.split("/").includes(k)) continue; // cycle guard
-        rows.push(...renderRows(k, `${path}/${k}`, depth + 1));
+        rows.push(...renderRows(k, `${path}/${k}`, depth + 1, key));
       }
     }
     return rows;

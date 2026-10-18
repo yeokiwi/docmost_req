@@ -14,8 +14,17 @@ export type RequirementRefSnapshot = {
   key: string;
   // the space the ref points at; null means the source page's space
   spaceId: string | null;
-  // key of the enclosing requirement block, if any
+  // key of the requirement the link belongs to: the enclosing requirement
+  // block, or the requirement defined in the same table row
   sourceKey: string | null;
+  // name of the relationship: the title of the table column holding the link
+  relation: string | null;
+};
+
+// where a node sits inside a table; used to name relationships after columns
+type TableContext = {
+  relation: string | null;
+  rowKey: string | null;
 };
 
 export const REQUIREMENT_KEY_REGEX = /^[A-Z][A-Z0-9_]{1,15}-\d+$/;
@@ -102,6 +111,25 @@ function normalizeProperties(value: unknown): Record<string, string> {
   return out;
 }
 
+function firstRequirementKey(node: any): string | null {
+  if (!node || typeof node !== 'object') return null;
+  if (node.type === REQUIREMENT_TYPE) {
+    const key = String(node.attrs?.key ?? '').trim().toUpperCase();
+    if (key) return key;
+  }
+  if (Array.isArray(node.content)) {
+    for (const child of node.content) {
+      const found = firstRequirementKey(child);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function containsRequirement(node: any): boolean {
+  return firstRequirementKey(node) !== null;
+}
+
 /**
  * Walks a page's ProseMirror JSON and returns the requirements it defines
  * and the requirement references it contains.
@@ -109,6 +137,10 @@ function normalizeProperties(value: unknown): Record<string, string> {
  * Requirement nodes without a node id fall back to `key:<KEY>` so content
  * created outside the editor still indexes deterministically. When a page
  * defines the same node id twice, the first occurrence wins.
+ *
+ * In a table, a reference belongs to the requirement defined in its row and
+ * is named after its column's title (the first row, when it defines no
+ * requirement).
  */
 export function collectRequirementsFromPmJson(doc: unknown): {
   requirements: RequirementSnapshot[];
@@ -122,8 +154,52 @@ export function collectRequirementsFromPmJson(doc: unknown): {
   const seenRefNodes = new Set<string>();
   let refFallbackIndex = 0;
 
-  const visit = (node: any, enclosingKey: string | null): void => {
+  const visitTable = (table: any, enclosingKey: string | null): void => {
+    const rows: any[] = Array.isArray(table.content) ? table.content : [];
+    const headerRow =
+      rows.length > 0 && !containsRequirement(rows[0]) ? rows[0] : null;
+    const headers: string[] = [];
+    if (headerRow) {
+      for (const cell of headerRow.content ?? []) {
+        const span = Math.max(1, Number(cell?.attrs?.colspan) || 1);
+        const text = pmNodesToText(cell?.content).replace(/\s+/g, ' ').trim();
+        for (let i = 0; i < span; i++) headers.push(text);
+      }
+    }
+
+    for (const row of rows) {
+      if (row === headerRow) {
+        // header cells hold titles, not requirements, but visit them anyway
+        visit(row, enclosingKey, undefined);
+        continue;
+      }
+      const rowKey = firstRequirementKey(row);
+      let col = 0;
+      for (const cell of row?.content ?? []) {
+        const span = Math.max(1, Number(cell?.attrs?.colspan) || 1);
+        const ctx: TableContext = {
+          relation: headers[col] || null,
+          rowKey,
+        };
+        if (Array.isArray(cell?.content)) {
+          for (const child of cell.content) visit(child, enclosingKey, ctx);
+        }
+        col += span;
+      }
+    }
+  };
+
+  const visit = (
+    node: any,
+    enclosingKey: string | null,
+    ctx: TableContext | undefined,
+  ): void => {
     if (!node || typeof node !== 'object') return;
+
+    if (node.type === 'table') {
+      visitTable(node, enclosingKey);
+      return;
+    }
 
     if (node.type === REQUIREMENT_TYPE) {
       const key = String(node.attrs?.key ?? '').trim().toUpperCase();
@@ -146,15 +222,16 @@ export function collectRequirementsFromPmJson(doc: unknown): {
         childKey = key;
       }
       if (Array.isArray(node.content)) {
-        for (const child of node.content) visit(child, childKey);
+        for (const child of node.content) visit(child, childKey, ctx);
       }
       return;
     }
 
     if (node.type === REQUIREMENT_REF_TYPE) {
       const key = String(node.attrs?.key ?? '').trim().toUpperCase();
+      const sourceKey = enclosingKey ?? ctx?.rowKey ?? null;
       // a requirement referencing itself is not a link
-      if (!key || key === enclosingKey) return;
+      if (!key || key === sourceKey) return;
       const nodeId =
         typeof node.attrs?.id === 'string' && node.attrs.id
           ? node.attrs.id
@@ -168,17 +245,18 @@ export function collectRequirementsFromPmJson(doc: unknown): {
           typeof node.attrs?.spaceId === 'string' && node.attrs.spaceId
             ? node.attrs.spaceId
             : null,
-        sourceKey: enclosingKey,
+        sourceKey,
+        relation: sourceKey ? (ctx?.relation ?? null) : null,
       });
       return;
     }
 
     if (Array.isArray(node.content)) {
-      for (const child of node.content) visit(child, enclosingKey);
+      for (const child of node.content) visit(child, enclosingKey, ctx);
     }
   };
 
-  visit(doc, null);
+  visit(doc, null, undefined);
   return { requirements, refs };
 }
 

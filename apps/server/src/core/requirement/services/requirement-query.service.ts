@@ -208,6 +208,7 @@ export class RequirementQueryService {
         'requirementLinks.sourcePageId',
         'requirementLinks.sourceSpaceId',
         'requirementLinks.sourceKey',
+        'requirementLinks.relation',
         'pages.title as pageTitle',
         'pages.slugId as pageSlugId',
       ])
@@ -231,6 +232,7 @@ export class RequirementQueryService {
         'target.id as targetId',
         'target.title as targetTitle',
         'target.pageId as targetPageId',
+        'requirementLinks.relation',
       ])
       .where('requirementLinks.sourceSpaceId', '=', requirement.spaceId)
       .where('requirementLinks.sourceKey', '=', requirement.key)
@@ -247,7 +249,10 @@ export class RequirementQueryService {
     const dedupe = new Map<string, (typeof incoming)[number]>();
     for (const link of incoming) {
       if (!accessibleSources.has(link.sourcePageId)) continue;
-      dedupe.set(`${link.sourcePageId}:${link.sourceKey ?? ''}`, link);
+      dedupe.set(
+        `${link.sourcePageId}:${link.sourceKey ?? ''}:${link.relation ?? ''}`,
+        link,
+      );
     }
 
     const visibleIncoming = [...dedupe.values()];
@@ -259,7 +264,10 @@ export class RequirementQueryService {
       referencedByRequirements: visibleIncoming.filter((l) => !!l.sourceKey),
       dependsOn: [
         ...new Map(
-          outgoing.map((o) => [`${o.targetSpaceId}:${o.targetKey}`, o]),
+          outgoing.map((o) => [
+            `${o.targetSpaceId}:${o.targetKey}:${o.relation ?? ''}`,
+            o,
+          ]),
         ).values(),
       ],
     };
@@ -301,6 +309,35 @@ export class RequirementQueryService {
     for (const row of rows) {
       for (const dep of row.dependsOn ?? []) {
         if (colKeys.has(dep)) cells.push([row.key, dep]);
+      }
+    }
+
+    // named relationships (table column titles) between row and column requirements
+    const cellRelations: Array<[string, string, string]> = [];
+    if (rows.length && colKeys.size) {
+      const named = await this.db
+        .selectFrom('requirementLinks')
+        .select([
+          'requirementLinks.sourceKey',
+          'requirementLinks.targetKey',
+          'requirementLinks.relation',
+        ])
+        .where('requirementLinks.sourceSpaceId', '=', spaceId)
+        .where('requirementLinks.targetSpaceId', '=', spaceId)
+        .where(
+          'requirementLinks.sourceKey',
+          'in',
+          rows.map((r) => r.key),
+        )
+        .where('requirementLinks.relation', 'is not', null)
+        .execute();
+      const seenRel = new Set<string>();
+      for (const n of named) {
+        if (!n.sourceKey || !n.relation || !colKeys.has(n.targetKey)) continue;
+        const id = `${n.sourceKey}|${n.targetKey}`;
+        if (seenRel.has(id)) continue;
+        seenRel.add(id);
+        cellRelations.push([n.sourceKey, n.targetKey, n.relation]);
       }
     }
 
@@ -355,6 +392,7 @@ export class RequirementQueryService {
       rows: rows.map(pick),
       columns: columns.map(pick),
       cells,
+      cellRelations,
       pageRefs,
       truncated:
         rows.length >= MAX_MATRIX_SIDE || columns.length >= MAX_MATRIX_SIDE,

@@ -1,7 +1,11 @@
 import type { Editor } from "@tiptap/react";
 import { TextSelection } from "@tiptap/pm/state";
 import { FC, useCallback, useEffect, useRef, useState } from "react";
-import { IconMessage } from "@tabler/icons-react";
+import { IconListDetails, IconMessage } from "@tabler/icons-react";
+import {
+  openTransformDialog,
+  selectedKey,
+} from "@/features/requirement/utils/convert-keys";
 import classes from "./bubble-menu.module.css";
 import { ActionIcon, Tooltip } from "@mantine/core";
 import { useAtom } from "jotai";
@@ -15,9 +19,14 @@ import { isEditorReady } from "@docmost/editor-ext";
 
 type ReadonlyBubbleMenuProps = {
   editor: Editor;
+  // users who can edit the page may turn a selected key into a requirement
+  canEditRequirements?: boolean;
 };
 
-export const ReadonlyBubbleMenu: FC<ReadonlyBubbleMenuProps> = ({ editor }) => {
+export const ReadonlyBubbleMenu: FC<ReadonlyBubbleMenuProps> = ({
+  editor,
+  canEditRequirements,
+}) => {
   const { t } = useTranslation();
   const [showReadOnlyCommentPopup, setShowReadOnlyCommentPopup] = useAtom(
     showReadOnlyCommentPopupAtom,
@@ -25,6 +34,7 @@ export const ReadonlyBubbleMenu: FC<ReadonlyBubbleMenuProps> = ({ editor }) => {
   const [, setReadOnlyCommentData] = useAtom(readOnlyCommentDataAtom);
   const menuRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
+  const [keySelected, setKeySelected] = useState(false);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const isInteractingRef = useRef(false);
 
@@ -77,12 +87,13 @@ export const ReadonlyBubbleMenu: FC<ReadonlyBubbleMenuProps> = ({ editor }) => {
       return;
     }
 
+    setKeySelected(!!canEditRequirements && !!selectedKey(editor));
     setPosition({
       top: rect.top - editorRect.top - 44,
       left: rect.left - editorRect.left + rect.width / 2,
     });
     setVisible(true);
-  }, [editor, showReadOnlyCommentPopup]);
+  }, [editor, showReadOnlyCommentPopup, canEditRequirements]);
 
   useEffect(() => {
     const handleSelectionChange = () => {
@@ -158,6 +169,27 @@ export const ReadonlyBubbleMenu: FC<ReadonlyBubbleMenuProps> = ({ editor }) => {
             <IconMessage size={16} stroke={2} />
           </ActionIcon>
         </Tooltip>
+        {keySelected && (
+          <Tooltip label={t("Requirement")} withArrow withinPortal={false}>
+            <ActionIcon
+              variant="default"
+              size="lg"
+              radius="6px"
+              aria-label={t("Requirement")}
+              style={{ border: "none" }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                isInteractingRef.current = true;
+                openTransformDialog(editor);
+                setVisible(false);
+                isInteractingRef.current = false;
+              }}
+            >
+              <IconListDetails size={16} stroke={2} />
+            </ActionIcon>
+          </Tooltip>
+        )}
       </div>
     </div>
   );

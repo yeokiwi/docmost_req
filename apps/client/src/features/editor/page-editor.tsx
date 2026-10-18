@@ -530,7 +530,7 @@ function CollabPageEditor({
           </div>
         )}
         {editor && !editorIsEditable && (editable || canComment) && (
-          <ReadonlyBubbleMenu editor={editor} />
+          <ReadonlyBubbleMenu editor={editor} canEditRequirements={editable} />
         )}
         {editor && (
           <LightboxView

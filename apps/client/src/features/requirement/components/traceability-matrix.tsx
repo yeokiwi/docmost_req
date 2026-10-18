@@ -51,9 +51,13 @@ export default function TraceabilityMatrix({ space }: { space: ISpace }) {
     const used = new Set(cells.map(([, c]) => c));
     const columns = showAll ? allColumns : allColumns.filter((c) => used.has(c.key));
     const set = new Set(cells.map(([r, c]) => `${r}|${c}`));
+    const relations = new Map<string, string>();
+    for (const [r, c, name] of data?.cellRelations ?? []) {
+      relations.set(swapped ? `${c}|${r}` : `${r}|${c}`, name);
+    }
     const rowHits = new Map<string, number>();
     for (const [r] of cells) rowHits.set(r, (rowHits.get(r) ?? 0) + 1);
-    return { rows, columns, set, rowHits, links: cells.length };
+    return { rows, columns, set, relations, rowHits, links: cells.length };
   }, [data, showAll, swapped]);
 
   return (
@@ -221,7 +225,7 @@ export default function TraceabilityMatrix({ space }: { space: ISpace }) {
                     >
                       {view.set.has(`${row.key}|${c.key}`) && (
                         <Tooltip
-                          label={`${row.key} → ${c.key}`}
+                          label={`${row.key} → ${c.key}${view.relations.get(`${row.key}|${c.key}`) ? ` (${view.relations.get(`${row.key}|${c.key}`)})` : ""}`}
                           withinPortal
                         >
                           <IconCheck
