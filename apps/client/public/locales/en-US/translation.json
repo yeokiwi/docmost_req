@@ -1775,5 +1775,7 @@
   "about {{count}} other occurrences": "about {{count}} other occurrences",
   "Pattern": "Pattern",
   "A regular expression that must match the complete key.": "A regular expression that must match the complete key.",
-  "Invalid regular expression": "Invalid regular expression"
+  "Invalid regular expression": "Invalid regular expression",
+  "Downstream (references)": "Downstream (references)",
+  "This requirement does not reference any other requirement": "This requirement does not reference any other requirement"
 }

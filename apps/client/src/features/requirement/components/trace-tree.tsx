@@ -47,7 +47,7 @@ export default function TraceTree({ space }: { space: ISpace }) {
   const [start, setStart] = useState(searchParams.get("start") ?? "");
   const [dStart] = useDebouncedValue(start, 300);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [highlightEmpty, setHighlightEmpty] = useState(true);
+  const [highlightEmpty, setHighlightEmpty] = useState(false);
   const [hiddenProps, setHiddenProps] = useState<string[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -70,11 +70,11 @@ export default function TraceTree({ space }: { space: ISpace }) {
     const children = new Map<string, string[]>();
     const hasParent = new Set<string>();
     for (const [row, col] of matrix?.cells ?? []) {
-      // row depends on col: row is downstream of col
-      children.set(col, [...(children.get(col) ?? []), row]);
-      hasParent.add(row);
+      // the row contains a reference to col: col is downstream of row
+      children.set(row, [...(children.get(row) ?? []), col]);
+      hasParent.add(col);
     }
-    // relationship name per [child, parent] edge
+    // relationship name per [requirement, referenced requirement] edge
     const relations = new Map<string, string>();
     for (const [row, col, relation] of matrix?.cellRelations ?? []) {
       relations.set(`${row}|${col}`, relation);
@@ -131,7 +131,7 @@ export default function TraceTree({ space }: { space: ISpace }) {
     parentKey?: string,
   ): React.ReactNode[] => {
     const relation = parentKey
-      ? model.relations.get(`${key}|${parentKey}`)
+      ? model.relations.get(`${parentKey}|${key}`)
       : undefined;
     const info = model.info.get(key);
     const kids = model.children.get(key) ?? [];
@@ -177,17 +177,23 @@ export default function TraceTree({ space }: { space: ISpace }) {
         ))}
         <Table.Td
           bg={gap ? "var(--mantine-color-red-light)" : undefined}
-          title={gap ? t("Not covered") : undefined}
+          title={gap ? t("This requirement does not reference any other requirement") : undefined}
         >
           {kids.length ? (
             <Group gap={4}>
               {kids.slice(0, 4).map((k) => (
-                <RequirementKey
-                  key={k}
-                  value={k}
-                  size="sm"
-                  onClick={() => setSelected(k)}
-                />
+                <Group key={k} gap={4} wrap="nowrap">
+                  {model.relations.get(`${key}|${k}`) && (
+                    <Text size="xs" c="dimmed" fs="italic">
+                      {model.relations.get(`${key}|${k}`)}
+                    </Text>
+                  )}
+                  <RequirementKey
+                    value={k}
+                    size="sm"
+                    onClick={() => setSelected(k)}
+                  />
+                </Group>
               ))}
               {kids.length > 4 && (
                 <Text size="xs" c="dimmed">
@@ -325,7 +331,7 @@ export default function TraceTree({ space }: { space: ISpace }) {
                 ))}
                 <Table.Th>
                   <Group gap={6}>
-                    {t("Downstream")}
+                    {t("Downstream (references)")}
                     <Badge size="xs" variant="light" color="gray">
                       {model.roots.length}
                     </Badge>
