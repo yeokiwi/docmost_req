@@ -137,3 +137,14 @@
 .ref:not(.refEmpty)::before {
   content: "› ";
 }
+
+.refVersion {
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+/* properties of the linked requirement, shown after the link */
+.refProperties {
+  font-size: 0.85em;
+  color: light-dark(var(--mantine-color-gray-7), var(--mantine-color-dark-1));
+}

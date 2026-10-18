@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Badge,
@@ -19,6 +19,7 @@ import {
 import { useDebouncedValue } from "@mantine/hooks";
 import {
   IconArrowsSort,
+  IconCode,
   IconColumns,
   IconDownload,
   IconFileSpreadsheet,
@@ -73,6 +74,10 @@ export default function RequirementList({
       { replace: true },
     );
   const text = searchParams.get("q") ?? "";
+  // search syntax, kept in the URL so links can preset it
+  const urlQuery = searchParams.get("query") ?? "";
+  const [queryDraft, setQueryDraft] = useState(urlQuery);
+  useEffect(() => setQueryDraft(urlQuery), [urlQuery]);
   const setText = (v: string) => setParam("q", v || null);
   const coverage = (searchParams.get("cov") ?? "any") as RequirementCoverage;
   const setCoverage = (v: RequirementCoverage) =>
@@ -112,13 +117,14 @@ export default function RequirementList({
   const properties = debouncedProps;
   const filter: IRequirementFilter = {
     text: debouncedText.trim() || undefined,
+    query: urlQuery.trim() || undefined,
     properties: Object.keys(properties).length ? properties : undefined,
     coverage,
     validation: validation === "any" ? undefined : validation,
   };
 
   const { data: settings } = useRequirementSettingsQuery(space.id);
-  const { data, isLoading } = useRequirementsQuery({
+  const { data, isLoading, error: listError } = useRequirementsQuery({
     spaceId: space.id,
     filter,
     limit: pageSize,
@@ -148,7 +154,8 @@ export default function RequirementList({
     Object.keys(propertyFilters).length +
     (text ? 1 : 0) +
     (coverage !== "any" ? 1 : 0) +
-    (validation !== "any" ? 1 : 0);
+    (validation !== "any" ? 1 : 0) +
+    (urlQuery ? 1 : 0);
 
   const items = useMemo(() => {
     const list = [...(data?.items ?? [])];
@@ -257,6 +264,46 @@ export default function RequirementList({
           )}
         </Alert>
       )}
+
+      <TextInput
+        size="sm"
+        ff="monospace"
+        leftSection={<IconCode size={16} />}
+        placeholder="key ~ 'BR-%' AND @Priority = 'High' AND PARENT@refines = 'REQ-001'"
+        aria-label={t("Search syntax")}
+        value={queryDraft}
+        onChange={(e) => setQueryDraft(e.currentTarget.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            setParam("query", queryDraft.trim() || null);
+            setPage(1);
+          }
+        }}
+        onBlur={() => {
+          if (queryDraft.trim() !== urlQuery.trim()) {
+            setParam("query", queryDraft.trim() || null);
+            setPage(1);
+          }
+        }}
+        rightSectionWidth={110}
+        rightSection={
+          <Tooltip
+            multiline
+            w={360}
+            withinPortal
+            label={t(
+              "Fields: key, title, text, page, @Property, TO / PARENT (requirements that reference a key), FROM / CHILD (requirements a key references), with @relation to narrow, e.g. PARENT@refines. Operators: = != ~ !~ (% is a wildcard). Combine with AND. Press Enter to search.",
+            )}
+          >
+            <Text size="xs" c="dimmed" style={{ cursor: "help" }}>
+              {t("Search syntax")}
+            </Text>
+          </Tooltip>
+        }
+        error={
+          urlQuery ? ((listError as any)?.response?.data?.message ?? undefined) : undefined
+        }
+      />
 
       <Group justify="space-between" align="flex-end">
         <Group align="flex-end">

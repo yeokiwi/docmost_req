@@ -4,11 +4,13 @@ import { NodeViewProps, NodeViewWrapper } from "@tiptap/react";
 import {
   Badge,
   Button,
+  Checkbox,
   Group,
   HoverCard,
   Loader,
   Popover,
   ScrollArea,
+  Select,
   Stack,
   Text,
   TextInput,
@@ -19,6 +21,8 @@ import clsx from "clsx";
 import { useTranslation } from "react-i18next";
 import classes from "./requirement.module.css";
 import {
+  useBaselineItemQuery,
+  useBaselinesQuery,
   useRequirementInfoQuery,
   useRequirementsQuery,
 } from "@/features/requirement/queries/requirement-query";
@@ -35,11 +39,14 @@ import { IRequirement } from "@/features/requirement/types/requirement.types";
 export default function RequirementRefView(props: NodeViewProps) {
   const { node, updateAttributes, deleteNode, editor, getPos } = props;
   const { t } = useTranslation();
-  const { key, requirementId } = node.attrs as {
+  const { key, requirementId, baselineId, baselineLabel } = node.attrs as {
     key: string;
     requirementId: string | null;
     spaceId: string | null;
+    baselineId: string | null;
+    baselineLabel: string | null;
   };
+  const displayProperties = (node.attrs.displayProperties ?? []) as string[];
 
   const pageId = getEditorPageId(editor);
   const { data: page } = usePageQuery({ pageId });
@@ -52,6 +59,7 @@ export default function RequirementRefView(props: NodeViewProps) {
   const [pickerOpened, setPickerOpened] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [drawerOpened, setDrawerOpened] = useState(false);
+  const [configOpened, setConfigOpened] = useState(false);
   const isEditable = editor.isEditable;
 
   useEffect(() => {
@@ -65,8 +73,54 @@ export default function RequirementRefView(props: NodeViewProps) {
   const { data: info, isError } = useRequirementInfoQuery({
     spaceId: spaceId ?? undefined,
     key,
-    enabled: !!key && (hovered || drawerOpened),
+    // shown properties update live, so fetch whenever some are chosen
+    enabled:
+      !!key &&
+      (hovered || drawerOpened || configOpened || displayProperties.length > 0),
   });
+  // a link to a baseline shows the requirement as it was then
+  const { data: versioned, isError: versionMissing } = useBaselineItemQuery(
+    baselineId,
+    key,
+  );
+  const { data: baselines } = useBaselinesQuery(
+    isEditable && configOpened ? (spaceId ?? undefined) : undefined,
+  );
+  const shownProperties: Record<string, string> =
+    (baselineId ? versioned?.item.properties : info?.requirement.properties) ?? {};
+
+  const toggleProperty = (name: string) =>
+    updateAttributes({
+      displayProperties: displayProperties.includes(name)
+        ? displayProperties.filter((n) => n !== name)
+        : [...displayProperties, name],
+    });
+
+  // the link becomes the requirement's definition, in a block of its own
+  const transformToDefinition = () => {
+    const pos = getPos();
+    if (typeof pos !== "number") return;
+    const { state, view } = editor;
+    const $pos = state.doc.resolve(pos);
+    const parent = $pos.parent;
+    const requirement = state.schema.nodes.requirement.create(
+      { key, title: "", properties: {} },
+      state.schema.nodes.paragraph.create(),
+    );
+    const tr = state.tr;
+    const onlyThisLink =
+      parent.type.name === "paragraph" &&
+      parent.textContent.replace(key, "").trim() === "" &&
+      parent.childCount <= 2;
+    if (onlyThisLink) {
+      tr.replaceWith($pos.before(), $pos.after(), requirement);
+    } else {
+      tr.insert($pos.after(), requirement);
+      tr.delete(pos, pos + node.nodeSize);
+    }
+    view.dispatch(tr);
+    setConfigOpened(false);
+  };
 
   const select = (req: PickerItem) => {
     updateAttributes({
@@ -100,6 +154,8 @@ export default function RequirementRefView(props: NodeViewProps) {
 
   const open = () => {
     if (!key && isEditable) setPickerOpened(true);
+    // while editing, a click configures the link; when reading, it follows it
+    else if (key && isEditable) setConfigOpened((o) => !o);
     else if (key) void goToDefinition();
   };
 
@@ -128,12 +184,163 @@ export default function RequirementRefView(props: NodeViewProps) {
       title={key ? t("Open requirement {{key}}", { key }) : undefined}
     >
       {key || t("Select requirement")}
+      {baselineLabel && (
+        <span className={classes.refVersion}> @ {baselineLabel}</span>
+      )}
     </a>
+  );
+
+  // chosen properties of the target, next to the link
+  const propertySuffix =
+    displayProperties.length > 0 ? (
+      <span className={classes.refProperties}>
+        {" ("}
+        {displayProperties
+          .map((name) => `${name}: ${shownProperties[name] ?? "—"}`)
+          .join(", ")}
+        {")"}
+      </span>
+    ) : null;
+
+  const configPanel = (
+    <Stack gap="xs">
+      <Group gap={4}>
+        <Button size="compact-xs" variant="default" onClick={transformToDefinition}>
+          {t("Transform to definition")}
+        </Button>
+        <Button
+          size="compact-xs"
+          variant="default"
+          onClick={() => {
+            setConfigOpened(false);
+            setDrawerOpened(true);
+          }}
+        >
+          {t("View detail of {{key}}", { key })}
+        </Button>
+        <Select
+          size="xs"
+          w={170}
+          allowDeselect={false}
+          comboboxProps={{ withinPortal: false }}
+          aria-label={t("Version")}
+          value={baselineId ?? "current"}
+          data={[
+            { value: "current", label: t("Version: Current") },
+            ...(baselines ?? []).map((b) => ({
+              value: b.id,
+              label: `${t("Version")}: BL-${b.version} · ${b.name}`,
+            })),
+          ]}
+          onChange={(v) => {
+            const b = (baselines ?? []).find((x) => x.id === v);
+            updateAttributes({
+              baselineId: b ? b.id : null,
+              baselineLabel: b ? `BL-${b.version}` : null,
+            });
+          }}
+        />
+        <Button size="compact-xs" variant="default" color="red" onClick={() => deleteNode()}>
+          {t("Remove")}
+        </Button>
+      </Group>
+      {versionMissing && (
+        <Text size="xs" c="red">
+          {t("{{key}} is not in this baseline", { key })}
+        </Text>
+      )}
+      <Text size="sm" fw={600}>
+        {t("Properties:")}
+      </Text>
+      <Text size="xs" c="dimmed" mt={-6}>
+        {t("Ticked properties are shown next to the link and stay up to date.")}
+      </Text>
+      {Object.keys(shownProperties).length === 0 ? (
+        <Text size="xs" c="dimmed">
+          {info || versioned ? t("This requirement has no properties.") : <Loader size="xs" />}
+        </Text>
+      ) : (
+        <ScrollArea.Autosize mah={260}>
+          <Stack gap={6}>
+            {Object.entries(shownProperties).map(([name, value]) => (
+              <Checkbox
+                key={name}
+                size="xs"
+                checked={displayProperties.includes(name)}
+                onChange={() => toggleProperty(name)}
+                label={
+                  <Text size="xs" lineClamp={3}>
+                    <Text span fw={600} size="xs">
+                      {name}:
+                    </Text>{" "}
+                    {value}
+                  </Text>
+                }
+              />
+            ))}
+          </Stack>
+        </ScrollArea.Autosize>
+      )}
+    </Stack>
   );
 
   return (
     <NodeViewWrapper style={{ display: "inline" }} data-drag-handle>
-      {key ? (
+      {key && isEditable ? (
+        <>
+          <Popover
+            opened={configOpened}
+            onChange={setConfigOpened}
+            width={460}
+            position="bottom-start"
+            shadow="md"
+            withinPortal
+          >
+            <Popover.Target>{chip}</Popover.Target>
+            <Popover.Dropdown>{configPanel}</Popover.Dropdown>
+          </Popover>
+          {propertySuffix}
+        </>
+      ) : key && baselineId ? (
+        <>
+          <HoverCard width={320} shadow="md" openDelay={300} withinPortal>
+            <HoverCard.Target>{chip}</HoverCard.Target>
+            <HoverCard.Dropdown>
+              {versionMissing ? (
+                <Text size="sm" c="dimmed">
+                  {t("{{key}} is not in this baseline", { key })}
+                </Text>
+              ) : !versioned ? (
+                <Loader size="xs" />
+              ) : (
+                <Stack gap={4}>
+                  <Group gap="xs">
+                    <Badge variant="light" radius="sm" ff="monospace">
+                      {versioned.item.key}
+                    </Badge>
+                    <Badge variant="light" color="gray" radius="sm">
+                      BL-{versioned.baseline.version} · {versioned.baseline.name}
+                    </Badge>
+                  </Group>
+                  <Text size="sm" fw={600}>
+                    {versioned.item.title || t("Untitled")}
+                  </Text>
+                  {versioned.item.description && (
+                    <Text size="xs" c="dimmed" lineClamp={5}>
+                      {versioned.item.description}
+                    </Text>
+                  )}
+                  <Button size="compact-xs" variant="light" onClick={() => void goToDefinition()}>
+                    {t("Go to current definition")}
+                  </Button>
+                </Stack>
+              )}
+            </HoverCard.Dropdown>
+          </HoverCard>
+          {propertySuffix}
+        </>
+      ) : key ? (
+        <>
         <HoverCard
           width={300}
           shadow="md"
@@ -181,6 +388,8 @@ export default function RequirementRefView(props: NodeViewProps) {
             )}
           </HoverCard.Dropdown>
         </HoverCard>
+        {propertySuffix}
+        </>
       ) : (
         <Popover
           opened={pickerOpened}

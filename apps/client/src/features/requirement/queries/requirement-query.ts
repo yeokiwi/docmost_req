@@ -219,3 +219,24 @@ export function usePageValidationQuery(pageId: string | undefined) {
     refetchInterval: 30 * 1000,
   });
 }
+
+export function useBaselineItemQuery(
+  baselineId: string | null | undefined,
+  key: string | undefined,
+) {
+  return useQuery({
+    queryKey: ["requirement-baseline-item", baselineId, key],
+    queryFn: () => requirementService.getBaselineItem(baselineId!, key!),
+    enabled: !!baselineId && !!key,
+    retry: false,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useBrokenLinksQuery(spaceId: string | undefined) {
+  return useQuery({
+    queryKey: ["requirement-broken-links", spaceId],
+    queryFn: () => requirementService.getBrokenLinks(spaceId!),
+    enabled: !!spaceId,
+  });
+}

@@ -277,3 +277,54 @@ export async function confirmRequirementImport(data: {
   );
   return req.data;
 }
+
+export interface IBaselineItemResult {
+  baseline: IRequirementBaseline;
+  item: {
+    key: string;
+    title: string;
+    description: string;
+    properties: Record<string, string>;
+  };
+}
+
+export async function getBaselineItem(
+  baselineId: string,
+  key: string,
+): Promise<IBaselineItemResult> {
+  const req = await api.post<IBaselineItemResult>("/requirements/baselines/item", {
+    baselineId,
+    key,
+  });
+  return req.data;
+}
+
+export interface IKeySearchItem {
+  id: string;
+  key: string;
+  title: string;
+  spaceId: string;
+  spaceName: string;
+  spaceSlug: string;
+}
+
+export async function searchRequirementKeys(params: {
+  query: string;
+  spaceId?: string;
+  limit?: number;
+}): Promise<IKeySearchItem[]> {
+  const req = await api.post<{ items: IKeySearchItem[] }>(
+    "/requirements/search-keys",
+    params,
+  );
+  return req.data.items;
+}
+
+export async function getBrokenLinks(spaceId: string): Promise<
+  { pageId: string; title: string | null; slugId: string; keys: string[] }[]
+> {
+  const req = await api.post<{ items: any[] }>("/requirements/broken-links", {
+    spaceId,
+  });
+  return req.data.items;
+}

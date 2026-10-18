@@ -17,6 +17,7 @@ import { useAtom } from "jotai";
 import { workspaceAtom } from "@/features/user/atoms/current-user-atom.ts";
 import RequirementSettingsPanel from "@/features/requirement/components/requirement-settings-panel.tsx";
 import RequirementTypesPanel from "@/features/requirement/components/requirement-types-panel.tsx";
+import BrokenLinksPanel from "@/features/requirement/components/broken-links-panel.tsx";
 
 interface SpaceSettingsModalProps {
   spaceId: string;
@@ -149,6 +150,10 @@ export default function SpaceSettingsModal({
                               SpaceCaslAction.Manage,
                               SpaceCaslSubject.Page,
                             )}
+                          />
+                          <BrokenLinksPanel
+                            spaceId={space.id}
+                            spaceSlug={space.slug}
                           />
                         </>
                       )}

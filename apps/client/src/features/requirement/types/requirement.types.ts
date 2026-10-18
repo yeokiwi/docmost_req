@@ -54,6 +54,8 @@ export interface IPageValidationItem {
 
 export interface IRequirementFilter {
   text?: string;
+  // search syntax, e.g. key ~ 'BR-%' AND PARENT@refines = 'REQ-001'
+  query?: string;
   keyPrefix?: string;
   properties?: Record<string, string>;
   pageId?: string;

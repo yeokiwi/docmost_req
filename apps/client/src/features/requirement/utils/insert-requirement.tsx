@@ -108,7 +108,10 @@ async function openInsertDialog(editor: Editor) {
               editor
                 .chain()
                 .focus()
-                .setRequirementRef({ key: choice.key, spaceId: spaceId ?? null })
+                .setRequirementRef({
+                  key: choice.key,
+                  spaceId: choice.spaceId ?? spaceId ?? null,
+                })
                 .run();
             }
           } catch (err) {

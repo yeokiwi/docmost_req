@@ -19,6 +19,7 @@ type Attrs = {
   wholeDocument: boolean;
   ignoreProperties: boolean;
   ignoreDependencies: boolean;
+  title: boolean;
 };
 
 /**
@@ -35,7 +36,13 @@ export default function RequirementPropertyView(props: NodeViewProps) {
 
   useEffect(() => {
     // a freshly inserted, empty marker opens its settings straight away
-    if (isEditable && !attrs.name && !attrs.ignoreProperties && !attrs.ignoreDependencies) {
+    if (
+      isEditable &&
+      !attrs.name &&
+      !attrs.ignoreProperties &&
+      !attrs.ignoreDependencies &&
+      !attrs.title
+    ) {
       setOpened(true);
     }
   }, []);
@@ -45,6 +52,7 @@ export default function RequirementPropertyView(props: NodeViewProps) {
   }, [opened]);
 
   const flags = [
+    attrs.title && t("title"),
     attrs.wholeDocument && t("whole page"),
     attrs.ignoreProperties && t("not a property"),
     attrs.ignoreDependencies && t("not a dependency"),
@@ -54,7 +62,9 @@ export default function RequirementPropertyView(props: NodeViewProps) {
     ? attrs.value
       ? `${attrs.name}: ${attrs.value}`
       : attrs.name
-    : flags.length
+    : attrs.title
+      ? t("Title column")
+      : flags.length
       ? t("Ignored column")
       : t("Property");
 
@@ -118,6 +128,14 @@ export default function RequirementPropertyView(props: NodeViewProps) {
               checked={draft.wholeDocument}
               onChange={(e) =>
                 setDraft({ ...draft, wholeDocument: e.currentTarget.checked })
+              }
+            />
+            <Checkbox
+              size="xs"
+              label={t("Title: this column is the headline of the requirement")}
+              checked={!!draft.title}
+              onChange={(e) =>
+                setDraft({ ...draft, title: e.currentTarget.checked })
               }
             />
             <Checkbox

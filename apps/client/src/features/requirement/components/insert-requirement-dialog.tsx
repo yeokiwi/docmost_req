@@ -13,14 +13,18 @@ import { useDebouncedValue } from "@mantine/hooks";
 import clsx from "clsx";
 import { useTranslation } from "react-i18next";
 import classes from "@/features/editor/components/requirement/requirement.module.css";
-import { listRequirements } from "../services/requirement-service";
+import {
+  IKeySearchItem,
+  listRequirements,
+  searchRequirementKeys,
+} from "../services/requirement-service";
 import { IRequirement, IRequirementType } from "../types/requirement.types";
 
 export type InsertChoice =
   | { kind: "next" }
   | { kind: "type"; type: IRequirementType }
   | { kind: "define"; key: string }
-  | { kind: "link"; key: string };
+  | { kind: "link"; key: string; spaceId?: string };
 
 /** The type whose prefix `key` uses (longest prefix wins). */
 export function matchRequirementType(
@@ -68,6 +72,8 @@ export default function InsertRequirementDialog({
   const [query, setQuery] = useState("");
   const [debounced] = useDebouncedValue(query, 200);
   const [matches, setMatches] = useState<IRequirement[]>([]);
+  // the same key in other spaces the user belongs to
+  const [elsewhere, setElsewhere] = useState<IKeySearchItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -86,6 +92,23 @@ export default function InsertRequirementDialog({
       })
       .catch(() => !cancelled && setMatches([]))
       .finally(() => !cancelled && setLoading(false));
+    return () => {
+      cancelled = true;
+    };
+  }, [spaceId, debounced]);
+
+  useEffect(() => {
+    const q = debounced.trim();
+    if (!q) {
+      setElsewhere([]);
+      return;
+    }
+    let cancelled = false;
+    searchRequirementKeys({ query: q, spaceId, limit: 10 })
+      .then((items) => {
+        if (!cancelled) setElsewhere(items.filter((i) => i.spaceId !== spaceId));
+      })
+      .catch(() => !cancelled && setElsewhere([]));
     return () => {
       cancelled = true;
     };
@@ -148,6 +171,14 @@ export default function InsertRequirementDialog({
       title: m.title,
     });
   }
+  for (const m of elsewhere) {
+    options.push({
+      choice: { kind: "link", key: m.key, spaceId: m.spaceId },
+      label: m.key,
+      hint: t("Link"),
+      title: `(${t("in space {{name}}", { name: m.spaceName })}) ${m.title}`,
+    });
+  }
 
   return (
     <Stack gap={6}>
@@ -187,7 +218,7 @@ export default function InsertRequirementDialog({
       <ScrollArea.Autosize mah={280}>
         {options.map((o, index) => (
           <UnstyledButton
-            key={`${o.choice.kind}:${o.label}`}
+            key={`${o.choice.kind}:${o.label}:${"spaceId" in o.choice ? (o.choice.spaceId ?? "") : ""}`}
             className={clsx(
               classes.pickerItem,
               index === active && classes.pickerItemActive,

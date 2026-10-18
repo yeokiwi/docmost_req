@@ -5,13 +5,10 @@ import {
   Badge,
   Button,
   CopyButton,
-  Divider,
   Drawer,
   Group,
   Loader,
-  Paper,
   Stack,
-  Tabs,
   Text,
   Title,
   Tooltip,
@@ -36,6 +33,12 @@ import { useSpaceQuery } from "@/features/space/queries/space-query";
 import { buildPageUrl } from "@/features/page/page.utils";
 import { buildRequirementUrl } from "../utils/requirement-url";
 import RequirementPropertyBadge from "./requirement-property-badge";
+
+/** The search query for "property = value", escaping spaces and quotes. */
+export function propertyQuery(name: string, value: string) {
+  const escapedName = name.replace(/([\\\s])/g, "\\$1");
+  return `@${escapedName} = '${value.replace(/'/g, "''")}'`;
+}
 
 type RequirementDetailDrawerProps = {
   opened: boolean;
@@ -73,6 +76,48 @@ export default function RequirementDetailDrawer({
     ? matchRequirementType(requirement.key, typeList?.types ?? [])
     : null;
   const validationMessages = requirement?.validationMessages ?? [];
+  const [expanded, setExpanded] = useState(false);
+
+  // "See also": what this requirement references (its parents), what
+  // references it (its children), and pages that link to it
+  type SeeAlso = {
+    id: string;
+    kind: "parent" | "child" | "link";
+    key?: string;
+    spaceId?: string;
+    relation?: string | null;
+    label: string | null;
+    pageSlugId?: string;
+    missing?: boolean;
+  };
+  const seeAlso: SeeAlso[] = data
+    ? [
+        ...data.dependsOn.map((d) => ({
+          id: `p:${d.targetSpaceId}:${d.targetKey}:${d.relation ?? ""}`,
+          kind: "parent" as const,
+          key: d.targetKey,
+          spaceId: d.targetSpaceId,
+          relation: d.relation,
+          label: d.targetTitle,
+          missing: !d.targetId,
+        })),
+        ...data.referencedByRequirements.map((l) => ({
+          id: `c:${l.sourcePageId}:${l.sourceKey}:${l.relation ?? ""}`,
+          kind: "child" as const,
+          key: l.sourceKey ?? undefined,
+          spaceId: l.sourceSpaceId,
+          relation: l.relation,
+          label: l.pageTitle,
+          pageSlugId: l.pageSlugId,
+        })),
+        ...data.referencedByPages.map((l) => ({
+          id: `l:${l.sourcePageId}`,
+          kind: "link" as const,
+          label: l.pageTitle,
+          pageSlugId: l.pageSlugId,
+        })),
+      ]
+    : [];
   const properties = Object.entries(requirement?.properties ?? {});
 
   return (
@@ -113,7 +158,7 @@ export default function RequirementDetailDrawer({
           {requirementType && <TypeLozenge type={requirementType} />}
           {requirement && !requirement.isConflict && (
             <Badge color="green" variant="light" radius="sm" size="sm">
-              {t("Original definition")}
+              {t("Origin definition")}
             </Badge>
           )}
           {requirement?.isConflict && (
@@ -150,9 +195,16 @@ export default function RequirementDetailDrawer({
           </div>
 
           {requirement.description && (
-            <Text size="sm" style={{ whiteSpace: "pre-wrap" }}>
-              {requirement.description}
-            </Text>
+            <div>
+              <Text size="sm" style={{ whiteSpace: "pre-wrap" }} lineClamp={expanded ? undefined : 2}>
+                {requirement.description}
+              </Text>
+              {requirement.description.length > 160 && (
+                <Anchor size="xs" component="button" onClick={() => setExpanded((v) => !v)}>
+                  {expanded ? t("Show less") : t("Click to expand...")}
+                </Anchor>
+              )}
+            </div>
           )}
 
           <Group gap="xs">
@@ -205,157 +257,119 @@ export default function RequirementDetailDrawer({
           )}
 
           {properties.length > 0 && (
-            <Paper withBorder radius="md" p="sm">
-              <Group gap="xl" align="flex-start">
-                {properties.map(([name, value]) => (
-                  <div key={name}>
-                    <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+            <ul style={{ margin: 0, paddingLeft: 20 }}>
+              {properties.map(([name, value]) => (
+                <li key={name} style={{ marginBottom: 4 }}>
+                  {/* the name builds a search for this value, as long as the value is short */}
+                  {space && value.length < 80 ? (
+                    <Tooltip label={t("Find requirements with this value")}>
+                      <Anchor
+                        size="sm"
+                        component={Link}
+                        onClick={onClose}
+                        to={`/s/${space.slug}/requirements?tab=list&query=${encodeURIComponent(
+                          propertyQuery(name, value),
+                        )}`}
+                      >
+                        {name}
+                      </Anchor>
+                    </Tooltip>
+                  ) : (
+                    <Text span size="sm" fw={500}>
                       {name}
                     </Text>
-                    {space && value.length < 80 ? (
-                      <Tooltip label={t("Find requirements with this value")}>
-                        <Anchor
-                          component={Link}
-                          onClick={onClose}
-                          to={`/s/${space.slug}/requirements?tab=list&p.${encodeURIComponent(name)}=${encodeURIComponent(value)}`}
-                        >
-                          <RequirementPropertyBadge value={value} />
-                        </Anchor>
-                      </Tooltip>
-                    ) : (
-                      <RequirementPropertyBadge value={value} />
-                    )}
-                  </div>
-                ))}
-              </Group>
-            </Paper>
-          )}
-
-          <Tabs defaultValue="deps" keepMounted={false}>
-            <Tabs.List mb="sm">
-              <Tabs.Tab value="deps">
-                {t("Dependencies")} (
-                {data.dependsOn.length + data.referencedByRequirements.length})
-              </Tabs.Tab>
-              <Tabs.Tab value="pages">
-                {t("Pages")} ({data.referencedByPages.length})
-              </Tabs.Tab>
-            </Tabs.List>
-            <Tabs.Panel value="deps">
-              <Stack gap="md">
-          <Divider label={t("Depends on")} labelPosition="left" />
-          {data.dependsOn.length === 0 ? (
-            <Text size="sm" c="dimmed">
-              {t("None")}
-            </Text>
-          ) : (
-            <Stack gap={4}>
-              {data.dependsOn.map((dep) => (
-                <Group
-                  key={`${dep.targetSpaceId}:${dep.targetKey}:${dep.relation ?? ""}`}
-                  gap="xs"
-                >
-                  {dep.relation && (
-                    <Text size="sm" c="dimmed">
-                      {dep.relation} →
-                    </Text>
                   )}
-                  <Badge
-                    variant="light"
-                    radius="sm"
-                    ff="monospace"
-                    color={dep.targetId ? "blue" : "red"}
-                    style={{ cursor: dep.targetId ? "pointer" : undefined }}
-                    onClick={() =>
-                      dep.targetId &&
-                      setTrail((cur) => [
-                        ...cur,
-                        { spaceId: dep.targetSpaceId, key: dep.targetKey },
-                      ])
-                    }
-                  >
-                    {dep.targetKey}
-                  </Badge>
-                  <Text size="sm" c={dep.targetId ? undefined : "dimmed"}>
-                    {dep.targetTitle ?? t("Missing requirement")}
+                  <Text span size="sm">
+                    :{" "}
                   </Text>
-                </Group>
-              ))}
-            </Stack>
-          )}
-
-          <Divider label={t("Referenced by requirements")} labelPosition="left" />
-          {data.referencedByRequirements.length === 0 ? (
-            <Text size="sm" c="dimmed">
-              {t("None")}
-            </Text>
-          ) : (
-            <Stack gap={4}>
-              {data.referencedByRequirements.map((l) => (
-                <Group
-                  key={`${l.sourcePageId}:${l.sourceKey}:${l.relation ?? ""}`}
-                  gap="xs"
-                >
-                  {l.relation && (
-                    <Text size="sm" c="dimmed">
-                      {l.relation} ←
+                  {value.length < 30 ? (
+                    <RequirementPropertyBadge value={value} />
+                  ) : (
+                    <Text span size="sm" style={{ whiteSpace: "pre-wrap" }}>
+                      {value}
                     </Text>
                   )}
-                  <Badge
-                    variant="light"
-                    radius="sm"
-                    ff="monospace"
-                    style={{ cursor: l.sourceKey ? "pointer" : undefined }}
-                    onClick={() =>
-                      l.sourceKey &&
-                      setTrail((cur) => [
-                        ...cur,
-                        { spaceId: l.sourceSpaceId, key: l.sourceKey! },
-                      ])
-                    }
-                  >
-                    {l.sourceKey}
-                  </Badge>
-                  <Anchor
-                    size="sm"
-                    component={Link}
-                    to={pageUrl(l.pageSlugId, l.pageTitle)}
-                    onClick={onClose}
-                  >
-                    {l.pageTitle || t("Untitled")}
-                  </Anchor>
-                </Group>
+                </li>
               ))}
-            </Stack>
+            </ul>
           )}
 
-              </Stack>
-            </Tabs.Panel>
-            <Tabs.Panel value="pages">
-              <Stack gap="md">
-          <Divider label={t("Referenced by pages")} labelPosition="left" />
-          {data.referencedByPages.length === 0 ? (
-            <Text size="sm" c="dimmed">
-              {t("Not covered by any page")}
+          <div>
+            <Text size="sm" fw={600} mb={4}>
+              {t("See also:")}
             </Text>
-          ) : (
-            <Stack gap={4}>
-              {data.referencedByPages.map((l) => (
-                <Anchor
-                  key={l.sourcePageId}
-                  size="sm"
-                  component={Link}
-                  to={pageUrl(l.pageSlugId, l.pageTitle)}
-                  onClick={onClose}
-                >
-                  {l.pageTitle || t("Untitled")}
-                </Anchor>
-              ))}
-            </Stack>
-          )}
-              </Stack>
-            </Tabs.Panel>
-          </Tabs>
+            {seeAlso.length === 0 ? (
+              <Text size="sm" c="dimmed">
+                {t("Nothing links to or from this requirement yet.")}
+              </Text>
+            ) : (
+              <ul style={{ margin: 0, paddingLeft: 20 }}>
+                {seeAlso.map((entry) => (
+                  <li key={entry.id} style={{ marginBottom: 4 }}>
+                    <Group gap={6} wrap="nowrap">
+                      <Badge
+                        size="sm"
+                        radius="sm"
+                        color={entry.kind === "link" ? "orange" : "dark"}
+                        variant="filled"
+                        w={78}
+                      >
+                        {entry.kind === "parent"
+                          ? t("Parent ↗")
+                          : entry.kind === "child"
+                            ? t("Child ↘")
+                            : t("Link")}
+                      </Badge>
+                      {entry.relation && (
+                        <Text size="sm" c="dimmed">
+                          ({entry.relation})
+                        </Text>
+                      )}
+                      {entry.key ? (
+                        <Anchor
+                          size="sm"
+                          ff="monospace"
+                          c={entry.missing ? "red" : undefined}
+                          td={entry.missing ? "line-through" : undefined}
+                          onClick={() =>
+                            !entry.missing &&
+                            setTrail((cur) => [
+                              ...cur,
+                              { spaceId: entry.spaceId!, key: entry.key! },
+                            ])
+                          }
+                        >
+                          {entry.key}
+                        </Anchor>
+                      ) : null}
+                      <Anchor
+                        size="sm"
+                        truncate
+                        component={entry.pageSlugId ? Link : undefined}
+                        to={entry.pageSlugId ? pageUrl(entry.pageSlugId, entry.label) : undefined}
+                        onClick={entry.pageSlugId ? onClose : undefined}
+                        c={entry.pageSlugId ? undefined : "dimmed"}
+                      >
+                        {entry.label || (entry.missing ? t("Missing requirement") : "")}
+                      </Anchor>
+                    </Group>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {space && (
+              <Anchor
+                size="xs"
+                component={Link}
+                mt={6}
+                display="inline-block"
+                onClick={onClose}
+                to={`/s/${space.slug}/requirements?tab=baselines`}
+              >
+                {t("See history")}
+              </Anchor>
+            )}
+          </div>
 
           <Group gap="xs">
             <CopyButton
