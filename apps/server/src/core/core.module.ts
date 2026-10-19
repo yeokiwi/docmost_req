@@ -31,6 +31,7 @@ import { SessionModule } from './session/session.module';
 import { RequirementModule } from './requirement/requirement.module';
 import { TemplateModule } from './template/template.module';
 import { PageVerificationModule } from './page-verification/page-verification.module';
+import { ApiKeyModule } from './api-key/api-key.module';
 import { ClsMiddleware } from 'nestjs-cls';
 
 @Module({
@@ -44,6 +45,7 @@ import { ClsMiddleware } from 'nestjs-cls';
     FavoriteModule,
     TemplateModule,
     PageVerificationModule,
+    ApiKeyModule,
     SearchModule,
     SpaceModule,
     GroupModule,

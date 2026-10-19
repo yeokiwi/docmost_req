@@ -11,6 +11,7 @@ import {
   IconWorld,
   IconPlug,
   IconShieldCheck,
+  IconKey,
 } from "@tabler/icons-react";
 import { Link, useLocation } from "react-router-dom";
 import classes from "./settings.module.css";
@@ -61,6 +62,12 @@ const groupedData: DataGroup[] = [
         path: "/settings/account/preferences",
       },
       {
+        label: "API keys",
+        icon: IconKey,
+        path: "/settings/account/api-keys",
+        feature: Feature.API_KEYS,
+      },
+      {
         label: "Connections",
         icon: IconPlug,
         path: "/settings/account/connections",
@@ -81,6 +88,13 @@ const groupedData: DataGroup[] = [
         icon: IconShieldCheck,
         path: "/settings/verifications",
         feature: Feature.PAGE_VERIFICATION,
+      },
+      {
+        label: "API management",
+        icon: IconKey,
+        path: "/settings/api-keys",
+        feature: Feature.API_KEYS,
+        role: "admin",
       },
       {
         label: "Integrations",
