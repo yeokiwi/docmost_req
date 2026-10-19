@@ -10,6 +10,7 @@ import {
   IconBrush,
   IconWorld,
   IconPlug,
+  IconShieldCheck,
 } from "@tabler/icons-react";
 import { Link, useLocation } from "react-router-dom";
 import classes from "./settings.module.css";
@@ -17,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { isCloud } from "@/lib/config.ts";
 import useUserRole from "@/hooks/use-user-role.tsx";
 import { useAtom } from "jotai";
+import { Feature } from "@/features/edition/features";
 import {
   entitlementAtom,
   useUnavailableLabel as useUpgradeLabel,
@@ -74,6 +76,12 @@ const groupedData: DataGroup[] = [
       { label: "Groups", icon: IconUsersGroup, path: "/settings/groups" },
       { label: "Spaces", icon: IconSpaces, path: "/settings/spaces" },
       { label: "Public sharing", icon: IconWorld, path: "/settings/sharing" },
+      {
+        label: "Verified pages",
+        icon: IconShieldCheck,
+        path: "/settings/verifications",
+        feature: Feature.PAGE_VERIFICATION,
+      },
       {
         label: "Integrations",
         icon: IconPlug,

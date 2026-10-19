@@ -9,4 +9,5 @@ export const OPEN_SOURCE_FEATURES: ReadonlySet<FeatureKey> = new Set<FeatureKey>
   Feature.PDF_IMPORT,
   Feature.COMMENT_RESOLUTION,
   Feature.TEMPLATES,
+  Feature.PAGE_VERIFICATION,
 ]);

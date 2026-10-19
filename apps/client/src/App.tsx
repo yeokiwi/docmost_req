@@ -63,6 +63,9 @@ const TemplateList = lazyWithPrefetch(() => import("@/pages/templates/template-l
 const TemplateEditor = lazyWithPrefetch(
   () => import("@/pages/templates/template-editor.tsx"),
 );
+const VerifiedPages = lazyWithPrefetch(
+  () => import("@/pages/settings/verifications/verified-pages.tsx"),
+);
 const Connections = lazyWithPrefetch(
   () => import("@/features/integration/pages/connections.tsx"),
 );
@@ -150,6 +153,7 @@ export default function App() {
             <Route path={"groups/:groupId"} element={<GroupInfo />} />
             <Route path={"spaces"} element={<Spaces />} />
             <Route path={"sharing"} element={<Shares />} />
+            <Route path={"verifications"} element={<VerifiedPages />} />
             <Route path={"integrations"} element={<Integrations />} />
           </Route>
         </Route>

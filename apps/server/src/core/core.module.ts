@@ -30,6 +30,7 @@ import { FavoriteModule } from './favorite/favorite.module';
 import { SessionModule } from './session/session.module';
 import { RequirementModule } from './requirement/requirement.module';
 import { TemplateModule } from './template/template.module';
+import { PageVerificationModule } from './page-verification/page-verification.module';
 import { ClsMiddleware } from 'nestjs-cls';
 
 @Module({
@@ -42,6 +43,7 @@ import { ClsMiddleware } from 'nestjs-cls';
     CommentModule,
     FavoriteModule,
     TemplateModule,
+    PageVerificationModule,
     SearchModule,
     SpaceModule,
     GroupModule,

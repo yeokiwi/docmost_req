@@ -17,6 +17,7 @@ import {
   IconStar,
   IconStarFilled,
   IconTemplate,
+  IconShieldCheck,
   IconTrash,
   IconWifiOff,
 } from "@tabler/icons-react";
@@ -51,6 +52,7 @@ import PageAttachmentsModal from "@/features/attachments/components/page-attachm
 import PresentationModal from "@/features/editor/components/presentation/presentation-modal.tsx";
 import { useTimeAgo } from "@/hooks/use-time-ago.tsx";
 import ShareModal from "@/features/share/components/share-modal.tsx";
+import PageVerificationModal from "@/features/page-verification/components/page-verification-modal.tsx";
 import SaveAsTemplateModal from "@/features/template/components/save-as-template-modal.tsx";
 import { useHasFeature } from "@/features/edition/entitlements";
 import { Feature } from "@/features/edition/features";
@@ -179,6 +181,11 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
     { open: openSaveTemplateModal, close: closeSaveTemplateModal },
   ] = useDisclosure(false);
   const hasTemplates = useHasFeature(Feature.TEMPLATES);
+  const hasVerification = useHasFeature(Feature.PAGE_VERIFICATION);
+  const [
+    verificationOpened,
+    { open: openVerificationModal, close: closeVerificationModal },
+  ] = useDisclosure(false);
   const [pageEditor] = useAtom(pageEditorAtom);
   const pageUpdatedAt = useTimeAgo(page?.updatedAt);
   const favoriteIds = useFavoriteIds("page", page?.spaceId);
@@ -345,6 +352,15 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
             </Menu.Item>
           )}
 
+          {!page?.isBase && hasVerification && (
+            <Menu.Item
+              leftSection={<IconShieldCheck size={16} />}
+              onClick={openVerificationModal}
+            >
+              {t("Verification")}
+            </Menu.Item>
+          )}
+
           {!readOnly && !page?.isBase && hasTemplates && (
             <Menu.Item
               leftSection={<IconTemplate size={16} />}
@@ -443,6 +459,14 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
         onClose={closeMoveSpaceModal}
         open={movePageModalOpened}
       />
+
+      {verificationOpened && (
+        <PageVerificationModal
+          pageId={page.id}
+          opened={verificationOpened}
+          onClose={closeVerificationModal}
+        />
+      )}
 
       {saveTemplateOpened && (
         <SaveAsTemplateModal

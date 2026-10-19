@@ -1,6 +1,7 @@
 import classes from "@/features/editor/styles/editor.module.css";
 import React, { useEffect } from "react";
 import { TitleEditor } from "@/features/editor/title-editor";
+import { PageVerificationBadge } from "@/features/page-verification/components/page-verification-badge.tsx";
 import PageEditor from "@/features/editor/page-editor";
 import {
   ActionIcon,
@@ -106,6 +107,7 @@ export function FullEditor({
         editable={editable}
       />
       <PageByline
+        pageId={pageId}
         creator={creator}
         contributors={contributors}
         readOnly={!editable}
@@ -126,12 +128,18 @@ export function FullEditor({
 }
 
 type PageBylineProps = {
+  pageId: string;
   creator?: PageUser;
   contributors?: IContributor[];
   readOnly?: boolean;
 };
 
-function PageByline({ creator, contributors, readOnly }: PageBylineProps) {
+function PageByline({
+  pageId,
+  creator,
+  contributors,
+  readOnly,
+}: PageBylineProps) {
   const { t } = useTranslation();
   const detailsTriggerProps = useAsideTriggerProps("details");
 
@@ -219,6 +227,7 @@ function PageByline({ creator, contributors, readOnly }: PageBylineProps) {
         </ActionIcon>
       </Tooltip>
 
+      <PageVerificationBadge pageId={pageId} />
     </Group>
   );
 }
