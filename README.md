@@ -170,8 +170,10 @@ This distribution is licensed under the open-source AGPL 3.0 license (see `LICEN
 
 The Docmost Enterprise Edition code (`apps/client/src/ee`, `apps/server/src/ee`,
 `packages/ee`) has been removed. Features that were enterprise-only are either
-unavailable or re-implemented here as new AGPL-licensed code (currently: DOCX and
-PDF import). The list of open-source features is kept in
+unavailable or re-implemented here as new AGPL-licensed code: DOCX and PDF
+import, comment resolution, templates, page verification and approval,
+personal spaces, API keys, audit logs, page-level permissions and two-factor
+authentication (TOTP). The list of open-source features is kept in
 `apps/server/src/common/open-source-features.ts`.
 
 ### Contributing
