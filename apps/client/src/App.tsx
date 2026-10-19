@@ -67,6 +67,7 @@ const VerifiedPages = lazyWithPrefetch(
   () => import("@/pages/settings/verifications/verified-pages.tsx"),
 );
 const ApiKeys = lazyWithPrefetch(() => import("@/pages/settings/api-keys/api-keys.tsx"));
+const AuditLogs = lazyWithPrefetch(() => import("@/pages/settings/audit/audit-logs.tsx"));
 const Connections = lazyWithPrefetch(
   () => import("@/features/integration/pages/connections.tsx"),
 );
@@ -150,6 +151,7 @@ export default function App() {
             <Route path={"account/connections"} element={<Connections />} />
             <Route path={"account/api-keys"} element={<ApiKeys />} />
             <Route path={"api-keys"} element={<ApiKeys adminView />} />
+            <Route path={"audit"} element={<AuditLogs />} />
             <Route path={"workspace"} element={<WorkspaceSettings />} />
             <Route path={"members"} element={<WorkspaceMembers />} />
             <Route path={"groups"} element={<Groups />} />

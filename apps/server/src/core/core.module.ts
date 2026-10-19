@@ -32,6 +32,7 @@ import { RequirementModule } from './requirement/requirement.module';
 import { TemplateModule } from './template/template.module';
 import { PageVerificationModule } from './page-verification/page-verification.module';
 import { ApiKeyModule } from './api-key/api-key.module';
+import { AuditViewerModule } from './audit/audit.module';
 import { ClsMiddleware } from 'nestjs-cls';
 
 @Module({
@@ -46,6 +47,7 @@ import { ClsMiddleware } from 'nestjs-cls';
     TemplateModule,
     PageVerificationModule,
     ApiKeyModule,
+    AuditViewerModule,
     SearchModule,
     SpaceModule,
     GroupModule,
