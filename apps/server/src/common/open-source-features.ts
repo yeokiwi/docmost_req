@@ -10,4 +10,5 @@ export const OPEN_SOURCE_FEATURES: ReadonlySet<FeatureKey> = new Set<FeatureKey>
   Feature.COMMENT_RESOLUTION,
   Feature.TEMPLATES,
   Feature.PAGE_VERIFICATION,
+  Feature.PERSONAL_SPACES,
 ]);

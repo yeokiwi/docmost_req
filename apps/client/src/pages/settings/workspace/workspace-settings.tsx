@@ -31,6 +31,15 @@ export default function WorkspaceSettings() {
             field="allowMemberTemplates"
             read={(ws) => ws?.settings?.templates?.allowMemberTemplates === true}
           />
+          <Divider my="md" />
+          <WorkspaceSettingToggle
+            label={t("Allow personal spaces")}
+            description={t(
+              "Every member can create one private space of their own from the profile menu.",
+            )}
+            field="allowPersonalSpaces"
+            read={(ws) => ws?.settings?.spaces?.allowPersonal === true}
+          />
         </>
       )}
 

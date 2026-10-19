@@ -35,6 +35,8 @@ import {
 } from '../casl/interfaces/workspace-ability.type';
 import WorkspaceAbilityFactory from '../casl/abilities/workspace-ability.factory';
 import { CreateSpaceDto } from './dto/create-space.dto';
+import { PersonalSpaceService } from './services/personal-space.service';
+import { CreatePersonalSpaceDto } from './dto/create-personal-space.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('spaces')
@@ -45,6 +47,7 @@ export class SpaceController {
     private readonly spaceMemberRepo: SpaceMemberRepo,
     private readonly spaceAbility: SpaceAbilityFactory,
     private readonly workspaceAbility: WorkspaceAbilityFactory,
+    private readonly personalSpaceService: PersonalSpaceService,
   ) {}
 
   @HttpCode(HttpStatus.OK)
@@ -145,6 +148,25 @@ export class SpaceController {
       throw new ForbiddenException();
     }
     return this.spaceService.createSpace(user, workspace.id, createSpaceDto);
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('personal')
+  async getPersonalSpace(
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return (await this.personalSpaceService.find(user, workspace)) ?? null;
+  }
+
+  @HttpCode(HttpStatus.OK)
+  @Post('personal/create')
+  createPersonalSpace(
+    @Body() dto: CreatePersonalSpaceDto,
+    @AuthUser() user: User,
+    @AuthWorkspace() workspace: Workspace,
+  ) {
+    return this.personalSpaceService.create(user, workspace, dto.name);
   }
 
   @HttpCode(HttpStatus.OK)

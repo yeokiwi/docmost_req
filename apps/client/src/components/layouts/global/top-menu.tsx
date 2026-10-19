@@ -21,7 +21,14 @@ import {
 } from "@tabler/icons-react";
 import { useAtom } from "jotai";
 import { currentUserAtom } from "@/features/user/atoms/current-user-atom.ts";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { getSpaceUrl } from "@/lib/config.ts";
+import { useHasFeature } from "@/features/edition/entitlements";
+import { Feature } from "@/features/edition/features";
+import {
+  useCreatePersonalSpaceMutation,
+  usePersonalSpaceQuery,
+} from "@/features/space/personal/personal-space.ts";
 import APP_ROUTE from "@/lib/app-route.ts";
 import useAuth from "@/features/auth/hooks/use-auth.ts";
 import { CustomAvatar } from "@/components/ui/custom-avatar.tsx";
@@ -36,6 +43,11 @@ export default function TopMenu() {
 
   const user = currentUser?.user;
   const workspace = currentUser?.workspace;
+  const navigate = useNavigate();
+  const hasPersonalSpaces = useHasFeature(Feature.PERSONAL_SPACES);
+  const personalAllowed = workspace?.settings?.spaces?.allowPersonal === true;
+  const { data: personalSpace } = usePersonalSpaceQuery(hasPersonalSpaces);
+  const createPersonalSpace = useCreatePersonalSpaceMutation();
 
   if (!user || !workspace) {
     return <></>;
@@ -117,6 +129,28 @@ export default function TopMenu() {
           {t("My preferences")}
         </Menu.Item>
 
+        {personalSpace ? (
+          <Menu.Item
+            component={Link}
+            to={getSpaceUrl(personalSpace.slug)}
+            leftSection={<IconUser size={16} />}
+          >
+            {t("Personal space")}
+          </Menu.Item>
+        ) : (
+          hasPersonalSpaces &&
+          personalAllowed && (
+            <Menu.Item
+              leftSection={<IconUser size={16} />}
+              onClick={async () => {
+                const space = await createPersonalSpace.mutateAsync(undefined);
+                navigate(getSpaceUrl(space.slug));
+              }}
+            >
+              {t("Create personal space")}
+            </Menu.Item>
+          )
+        )}
 
         <Menu.Sub>
           <Menu.Sub.Target>
