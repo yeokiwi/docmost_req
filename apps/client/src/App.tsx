@@ -59,6 +59,10 @@ const LabelPage = lazyWithPrefetch(() => import("@/pages/label/label-page"));
 const Integrations = lazyWithPrefetch(
   () => import("@/features/integration/pages/integrations.tsx"),
 );
+const TemplateList = lazyWithPrefetch(() => import("@/pages/templates/template-list.tsx"));
+const TemplateEditor = lazyWithPrefetch(
+  () => import("@/pages/templates/template-editor.tsx"),
+);
 const Connections = lazyWithPrefetch(
   () => import("@/features/integration/pages/connections.tsx"),
 );
@@ -120,6 +124,8 @@ export default function App() {
           <Route path={"/spaces"} element={<SpacesPage />} />
           <Route path={"/favorites"} element={<FavoritesPage />} />
           <Route path={"/labels/:labelName"} element={<LabelPage />} />
+          <Route path={"/templates"} element={<TemplateList />} />
+          <Route path={"/templates/:templateId"} element={<TemplateEditor />} />
           <Route path={"/s/:spaceSlug"} element={<SpaceHome />} />
           <Route path={"/s/:spaceSlug/trash"} element={<SpaceTrash />} />
           <Route

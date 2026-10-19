@@ -29,6 +29,7 @@ import { LinearModule } from './integration/providers/linear/linear.module';
 import { FavoriteModule } from './favorite/favorite.module';
 import { SessionModule } from './session/session.module';
 import { RequirementModule } from './requirement/requirement.module';
+import { TemplateModule } from './template/template.module';
 import { ClsMiddleware } from 'nestjs-cls';
 
 @Module({
@@ -40,6 +41,7 @@ import { ClsMiddleware } from 'nestjs-cls';
     AttachmentModule,
     CommentModule,
     FavoriteModule,
+    TemplateModule,
     SearchModule,
     SpaceModule,
     GroupModule,

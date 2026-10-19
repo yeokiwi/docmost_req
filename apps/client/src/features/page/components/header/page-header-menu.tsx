@@ -16,6 +16,7 @@ import {
   IconPrinter,
   IconStar,
   IconStarFilled,
+  IconTemplate,
   IconTrash,
   IconWifiOff,
 } from "@tabler/icons-react";
@@ -50,6 +51,9 @@ import PageAttachmentsModal from "@/features/attachments/components/page-attachm
 import PresentationModal from "@/features/editor/components/presentation/presentation-modal.tsx";
 import { useTimeAgo } from "@/hooks/use-time-ago.tsx";
 import ShareModal from "@/features/share/components/share-modal.tsx";
+import SaveAsTemplateModal from "@/features/template/components/save-as-template-modal.tsx";
+import { useHasFeature } from "@/features/edition/entitlements";
+import { Feature } from "@/features/edition/features";
 import {
   useFavoriteIds,
   useAddFavoriteMutation,
@@ -170,6 +174,11 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
     presentationOpened,
     { open: openPresentationModal, close: closePresentationModal },
   ] = useDisclosure(false);
+  const [
+    saveTemplateOpened,
+    { open: openSaveTemplateModal, close: closeSaveTemplateModal },
+  ] = useDisclosure(false);
+  const hasTemplates = useHasFeature(Feature.TEMPLATES);
   const [pageEditor] = useAtom(pageEditorAtom);
   const pageUpdatedAt = useTimeAgo(page?.updatedAt);
   const favoriteIds = useFavoriteIds("page", page?.spaceId);
@@ -336,6 +345,15 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
             </Menu.Item>
           )}
 
+          {!readOnly && !page?.isBase && hasTemplates && (
+            <Menu.Item
+              leftSection={<IconTemplate size={16} />}
+              onClick={openSaveTemplateModal}
+            >
+              {t("Save as template")}
+            </Menu.Item>
+          )}
+
           <Menu.Divider />
 
           {!readOnly && (
@@ -425,6 +443,17 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
         onClose={closeMoveSpaceModal}
         open={movePageModalOpened}
       />
+
+      {saveTemplateOpened && (
+        <SaveAsTemplateModal
+          opened={saveTemplateOpened}
+          onClose={closeSaveTemplateModal}
+          pageId={page.id}
+          spaceId={page.spaceId}
+          defaultTitle={page.title}
+          defaultIcon={page.icon}
+        />
+      )}
 
       <PageAttachmentsModal
         pageId={page.id}
