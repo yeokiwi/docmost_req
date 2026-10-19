@@ -7,4 +7,5 @@ import { Feature, FeatureKey } from './features';
 export const OPEN_SOURCE_FEATURES: ReadonlySet<FeatureKey> = new Set<FeatureKey>([
   Feature.DOCX_IMPORT,
   Feature.PDF_IMPORT,
+  Feature.COMMENT_RESOLUTION,
 ]);

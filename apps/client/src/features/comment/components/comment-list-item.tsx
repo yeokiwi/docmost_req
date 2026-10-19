@@ -1,4 +1,5 @@
-import { Group, Text, Box, Badge } from "@mantine/core";
+import { Group, Text, Box, Badge, ActionIcon, Tooltip } from "@mantine/core";
+import { IconCircleCheck, IconCircleCheckFilled } from "@tabler/icons-react";
 import React, { useEffect, useRef, useState } from "react";
 import classes from "./comment.module.css";
 import { useAtom, useAtomValue } from "jotai";
@@ -12,6 +13,7 @@ import CommentMenu from "@/features/comment/components/comment-menu";
 import { useHover } from "@mantine/hooks";
 import {
   useDeleteCommentMutation,
+  useResolveCommentMutation,
   useUpdateCommentMutation,
 } from "@/features/comment/queries/comment-query";
 import { IComment } from "@/features/comment/types/comment.types";
@@ -41,6 +43,7 @@ function CommentListItem({
   const editContentRef = useRef<any>(null);
   const updateCommentMutation = useUpdateCommentMutation();
   const deleteCommentMutation = useDeleteCommentMutation(comment.pageId);
+  const resolveCommentMutation = useResolveCommentMutation();
   const [currentUser] = useAtom(currentUserAtom);
   const createdAtAgo = useTimeAgo(comment.createdAt);
 
@@ -76,6 +79,18 @@ function CommentListItem({
       }
     } catch (error) {
       console.error("Failed to delete comment:", error);
+    }
+  }
+
+  async function handleResolveComment() {
+    try {
+      await resolveCommentMutation.mutateAsync({
+        commentId: comment.id,
+        pageId: comment.pageId,
+        resolved: comment.resolvedAt == null,
+      });
+    } catch (error) {
+      console.error("Failed to toggle resolved state:", error);
     }
   }
 
@@ -117,10 +132,42 @@ function CommentListItem({
             </Text>
 
             <div style={{ visibility: hovered ? "visible" : "hidden" }}>
+              {!comment.parentCommentId && canComment && (
+                <Tooltip
+                  label={
+                    comment.resolvedAt
+                      ? t("Re-open comment")
+                      : t("Resolve comment")
+                  }
+                  withArrow
+                >
+                  <ActionIcon
+                    variant="subtle"
+                    color={comment.resolvedAt ? "green" : "gray"}
+                    size="sm"
+                    mr={4}
+                    aria-label={
+                      comment.resolvedAt
+                        ? t("Re-open comment")
+                        : t("Resolve comment")
+                    }
+                    loading={resolveCommentMutation.isPending}
+                    onClick={handleResolveComment}
+                  >
+                    {comment.resolvedAt ? (
+                      <IconCircleCheckFilled size={18} />
+                    ) : (
+                      <IconCircleCheck size={18} />
+                    )}
+                  </ActionIcon>
+                </Tooltip>
+              )}
+
               <CommentMenu
                 commentId={comment.id}
                 onEditComment={handleEditToggle}
                 onDeleteComment={handleDeleteComment}
+                onResolveComment={handleResolveComment}
                 canEdit={currentUser?.user?.id === comment.creatorId}
                 canManage={
                   currentUser?.user?.id === comment.creatorId ||

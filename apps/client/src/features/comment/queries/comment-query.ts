@@ -8,11 +8,13 @@ import {
   createComment,
   deleteComment,
   getPageComments,
+  resolveComment,
   updateComment,
 } from "@/features/comment/services/comment-service";
 import {
   ICommentParams,
   IComment,
+  IResolveComment,
 } from "@/features/comment/types/comment.types";
 import { notifications } from "@mantine/notifications";
 import { IPagination } from "@/lib/types.ts";
@@ -158,3 +160,40 @@ export function useDeleteCommentMutation(pageId?: string) {
   });
 }
 
+export function useResolveCommentMutation() {
+  const queryClient = useQueryClient();
+  const { t } = useTranslation();
+
+  return useMutation<IComment, Error, IResolveComment>({
+    mutationFn: (data) => resolveComment(data),
+    onSuccess: (updatedComment, variables) => {
+      const cache = queryClient.getQueryData(
+        RQ_KEY(updatedComment.pageId),
+      ) as InfiniteData<IPagination<IComment>> | undefined;
+
+      if (cache) {
+        queryClient.setQueryData(RQ_KEY(updatedComment.pageId), {
+          ...cache,
+          pages: cache.pages.map((page) => ({
+            ...page,
+            items: page.items.map((comment) =>
+              comment.id === updatedComment.id ? updatedComment : comment,
+            ),
+          })),
+        });
+      }
+
+      notifications.show({
+        message: variables.resolved
+          ? t("Comment resolved")
+          : t("Comment re-opened"),
+      });
+    },
+    onError: () => {
+      notifications.show({
+        message: t("Failed to update comment"),
+        color: "red",
+      });
+    },
+  });
+}
