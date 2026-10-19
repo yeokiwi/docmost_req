@@ -18,6 +18,7 @@ import {
   IconStarFilled,
   IconTemplate,
   IconShieldCheck,
+  IconLock,
   IconTrash,
   IconWifiOff,
 } from "@tabler/icons-react";
@@ -52,6 +53,7 @@ import PageAttachmentsModal from "@/features/attachments/components/page-attachm
 import PresentationModal from "@/features/editor/components/presentation/presentation-modal.tsx";
 import { useTimeAgo } from "@/hooks/use-time-ago.tsx";
 import ShareModal from "@/features/share/components/share-modal.tsx";
+import PageAccessModal from "@/features/page-permission/page-access-modal.tsx";
 import PageVerificationModal from "@/features/page-verification/components/page-verification-modal.tsx";
 import SaveAsTemplateModal from "@/features/template/components/save-as-template-modal.tsx";
 import { useHasFeature } from "@/features/edition/entitlements";
@@ -182,6 +184,9 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
   ] = useDisclosure(false);
   const hasTemplates = useHasFeature(Feature.TEMPLATES);
   const hasVerification = useHasFeature(Feature.PAGE_VERIFICATION);
+  const hasPagePermissions = useHasFeature(Feature.PAGE_PERMISSIONS);
+  const [accessOpened, { open: openAccessModal, close: closeAccessModal }] =
+    useDisclosure(false);
   const [
     verificationOpened,
     { open: openVerificationModal, close: closeVerificationModal },
@@ -352,6 +357,15 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
             </Menu.Item>
           )}
 
+          {hasPagePermissions && (
+            <Menu.Item
+              leftSection={<IconLock size={16} />}
+              onClick={openAccessModal}
+            >
+              {t("Page access")}
+            </Menu.Item>
+          )}
+
           {!page?.isBase && hasVerification && (
             <Menu.Item
               leftSection={<IconShieldCheck size={16} />}
@@ -459,6 +473,14 @@ function PageActionMenu({ readOnly }: PageActionMenuProps) {
         onClose={closeMoveSpaceModal}
         open={movePageModalOpened}
       />
+
+      {accessOpened && (
+        <PageAccessModal
+          pageId={page.id}
+          opened={accessOpened}
+          onClose={closeAccessModal}
+        />
+      )}
 
       {verificationOpened && (
         <PageVerificationModal

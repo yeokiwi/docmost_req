@@ -1,7 +1,7 @@
 import classes from "./page-header.module.css";
 import PageHeaderMenu from "@/features/page/components/header/page-header-menu.tsx";
 import { Badge, Group, Tooltip } from "@mantine/core";
-import { IconExternalLink, IconWorld } from "@tabler/icons-react";
+import { IconExternalLink, IconLock, IconWorld } from "@tabler/icons-react";
 import Breadcrumb from "@/features/page/components/breadcrumbs/breadcrumb.tsx";
 import { useParams } from "react-router-dom";
 import { useTranslation } from "react-i18next";
@@ -35,6 +35,20 @@ export default function PageHeader({ readOnly }: Props) {
       <Group justify="space-between" h="100%" px="md" wrap="nowrap" className={classes.group}>
         <Group gap="xs" wrap="nowrap" style={{ minWidth: 0 }}>
           <Breadcrumb />
+
+          {page?.permissions?.hasRestriction && (
+            <Tooltip label={t("Only some people can open this page")} openDelay={250} withArrow>
+              <Badge
+                size="sm"
+                variant="light"
+                color="orange"
+                leftSection={<IconLock size={12} />}
+                style={{ flexShrink: 0 }}
+              >
+                {t("Restricted")}
+              </Badge>
+            </Tooltip>
+          )}
 
           {showPublicBadge && (
             <Tooltip label={t("Open public page")} openDelay={250} withArrow>

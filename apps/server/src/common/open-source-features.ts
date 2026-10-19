@@ -13,4 +13,5 @@ export const OPEN_SOURCE_FEATURES: ReadonlySet<FeatureKey> = new Set<FeatureKey>
   Feature.PERSONAL_SPACES,
   Feature.API_KEYS,
   Feature.AUDIT_LOGS,
+  Feature.PAGE_PERMISSIONS,
 ]);
