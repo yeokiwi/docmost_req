@@ -24,8 +24,8 @@ import { useGetSpacesQuery } from "@/features/space/queries/space-query";
 import { SpaceFilterMenu } from "@/features/space/components/space-filter-menu";
 import { CreatorFilterMenu } from "@/features/search/components/creator-filter-menu";
 import { RadioMenuItem } from "@/components/ui/radio-menu-item";
-import { useHasFeature } from "@/ee/hooks/use-feature";
-import { Feature } from "@/ee/features";
+import { useHasFeature } from "@/features/edition/entitlements";
+import { Feature } from "@/features/edition/features";
 import classes from "./search-spotlight-filters.module.css";
 import { useAtom } from "jotai";
 import { workspaceAtom } from "@/features/user/atoms/current-user-atom.ts";
@@ -142,7 +142,7 @@ export function SearchSpotlightFilters({
 
   return (
     <div className={classes.filtersContainer}>
-      {workspace?.settings?.ai?.search === true && (
+      {onAskClick && workspace?.settings?.ai?.search === true && (
         <div
           style={{
             display: "flex",

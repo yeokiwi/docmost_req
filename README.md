@@ -166,13 +166,13 @@ Requirements management works like Requirement Yogi for Confluence: requirements
 </p>
 
 ### License
-Docmost core is licensed under the open-source AGPL 3.0 license.  
-Enterprise features are available under an enterprise license (Enterprise Edition).  
+This distribution is licensed under the open-source AGPL 3.0 license (see `LICENSE`).
 
-All files in the following directories are licensed under the Docmost Enterprise license defined in `packages/ee/License`.
-  - apps/server/src/ee
-  - apps/client/src/ee
-  - packages/ee
+The Docmost Enterprise Edition code (`apps/client/src/ee`, `apps/server/src/ee`,
+`packages/ee`) has been removed. Features that were enterprise-only are either
+unavailable or re-implemented here as new AGPL-licensed code (currently: DOCX and
+PDF import). The list of open-source features is kept in
+`apps/server/src/common/open-source-features.ts`.
 
 ### Contributing
 

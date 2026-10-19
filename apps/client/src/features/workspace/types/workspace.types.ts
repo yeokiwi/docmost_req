@@ -1,4 +1,12 @@
-import { IAuthProvider } from "@/ee/security/types/security.types.ts";
+// Public summary of a workspace sign-in provider, as returned with the
+// workspace public data.
+export interface IAuthProvider {
+  id: string;
+  name: string;
+  type: string;
+  isEnabled?: boolean;
+  allowSignup?: boolean;
+}
 
 export interface IWorkspace {
   id: string;

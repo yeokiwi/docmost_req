@@ -16,9 +16,6 @@ import { IconAlertTriangle, IconFileOff } from "@tabler/icons-react";
 import { Button } from "@mantine/core";
 import { Link } from "react-router-dom";
 import { ErrorBoundary } from "react-error-boundary";
-import { BaseView } from "@/ee/base/components/base-view";
-import { useHasFeature } from "@/ee/hooks/use-feature";
-import { Feature } from "@/ee/features";
 import { getPageTitle } from "@/features/page/page.utils";
 import { DocumentTitle } from "@/components/ui/document-title.tsx";
 const MemoizedFullEditor = React.memo(FullEditor);
@@ -69,7 +66,6 @@ function PageContent({ pageSlug }: { pageSlug: string | undefined }) {
 
   useCommentDeepLink(page?.id);
 
-  const hasBases = useHasFeature(Feature.BASES);
   const canEdit = !page?.deletedAt && (page?.permissions?.canEdit ?? false);
   const canComment =
     canEdit ||
@@ -143,24 +139,19 @@ function PageContent({ pageSlug }: { pageSlug: string | undefined }) {
               flexDirection: "column",
             }}
           >
-            <BaseView
-              pageId={page.id}
-              editable={hasBases && canEdit}
-              titleSlot={
-                <div
-                  className="base-page-title"
-                  style={{ paddingTop: 2, paddingBottom: 6 }}
-                >
-                  <MemoizedTitleEditor
-                    pageId={page.id}
-                    slugId={page.slugId}
-                    title={page.title}
-                    spaceSlug={page.space?.slug ?? ""}
-                    editable={hasBases && canEdit}
-                    isBase
-                  />
-                </div>
-              }
+            <div className="base-page-title" style={{ paddingTop: 2, paddingBottom: 6 }}>
+              <MemoizedTitleEditor
+                pageId={page.id}
+                slugId={page.slugId}
+                title={page.title}
+                spaceSlug={page.space?.slug ?? ""}
+                editable={false}
+                isBase
+              />
+            </div>
+            <EmptyState
+              icon={IconFileOff}
+              title={t("Bases are not available in this edition")}
             />
           </div>
         </div>

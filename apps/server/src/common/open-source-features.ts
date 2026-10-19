@@ -1,0 +1,10 @@
+import { Feature, FeatureKey } from './features';
+
+/**
+ * Features this build implements as open source. They are on for every
+ * workspace without a license; anything else still needs one.
+ */
+export const OPEN_SOURCE_FEATURES: ReadonlySet<FeatureKey> = new Set<FeatureKey>([
+  Feature.DOCX_IMPORT,
+  Feature.PDF_IMPORT,
+]);

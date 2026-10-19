@@ -13,12 +13,12 @@ import {
   Integration,
 } from "../types/integration.types";
 import { getIntegrationIcon } from "./integration-icons";
-import { useHasFeature } from "@/ee/hooks/use-feature";
-import { useUpgradeLabel } from "@/ee/hooks/use-upgrade-label";
-import { Feature } from "@/ee/features";
+import { useHasFeature } from "@/features/edition/entitlements";
+import { useUnavailableLabel as useUpgradeLabel } from "@/features/edition/entitlements";
+import { Feature } from "@/features/edition/features";
 import { isCloud } from "@/lib/config.ts";
 
-// Keep in sync with apps/server/src/ee/licence/feature-registry.ts.
+// Keep in sync with apps/server/src/common/features.ts.
 const MINIMUM_PLAN: Record<string, { selfHosted: string; cloud: string }> = {
   [Feature.INTEGRATIONS]: { selfHosted: "Business", cloud: "Standard" },
   [Feature.INTEGRATIONS_ADVANCED]: { selfHosted: "Enterprise", cloud: "Business" },

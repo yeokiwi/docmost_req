@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ModuleRef } from '@nestjs/core';
 import { EnvironmentService } from './environment.service';
+import { OPEN_SOURCE_FEATURES } from '../../common/open-source-features';
 
 @Injectable()
 export class LicenseCheckService {
@@ -27,6 +28,8 @@ export class LicenseCheckService {
   }
 
   hasFeature(licenseKey: string, feature: string, plan?: string): boolean {
+    if (OPEN_SOURCE_FEATURES.has(feature as any)) return true;
+
     if (this.environmentService.isCloud()) {
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -63,6 +66,10 @@ export class LicenseCheckService {
   }
 
   resolveFeatures(licenseKey: string, plan: string): string[] {
+    return [...new Set([...OPEN_SOURCE_FEATURES, ...this.licensedFeatures(licenseKey, plan)])];
+  }
+
+  private licensedFeatures(licenseKey: string, plan: string): string[] {
     if (this.environmentService.isCloud()) {
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports

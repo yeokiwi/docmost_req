@@ -21,9 +21,9 @@ import { useDisclosure } from "@mantine/hooks";
 import { WorkspaceInviteForm } from "@/features/workspace/components/members/components/workspace-invite-form";
 import { CustomAvatar } from "@/components/ui/custom-avatar";
 import { AvatarIconType } from "@/features/attachments/types/attachment.types";
-import { useHasFeature } from "@/ee/hooks/use-feature";
-import { Feature } from "@/ee/features";
-import { useUpgradeLabel } from "@/ee/hooks/use-upgrade-label";
+import { useHasFeature } from "@/features/edition/entitlements";
+import { Feature } from "@/features/edition/features";
+import { useUnavailableLabel as useUpgradeLabel } from "@/features/edition/entitlements";
 
 export default function GlobalSidebar() {
   const { t } = useTranslation();
