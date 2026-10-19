@@ -6,6 +6,7 @@ import AccountAvatar from "@/features/user/components/account-avatar";
 import SettingsTitle from "@/components/settings/settings-title.tsx";
 import { useTranslation } from "react-i18next";
 import SessionList from "@/features/session/components/session-list";
+import { AccountMfaSection } from "@/features/mfa/account-mfa-section.tsx";
 import { DocumentTitle } from "@/components/ui/document-title.tsx";
 
 export default function AccountSettings() {
@@ -27,6 +28,10 @@ export default function AccountSettings() {
       <Divider my="lg" />
 
       <ChangePassword />
+
+      <Divider my="lg" />
+
+      <AccountMfaSection />
 
       <Divider my="lg" />
 

@@ -10,6 +10,10 @@ import { useTrackOrigin } from "@/hooks/use-track-origin";
 
 const SetupWorkspace = lazyWithPrefetch(() => import("@/pages/auth/setup-workspace.tsx"));
 const LoginPage = lazyWithPrefetch(() => import("@/pages/auth/login"));
+const MfaChallengePage = lazyWithPrefetch(() => import("@/pages/auth/mfa/mfa-challenge.tsx"));
+const MfaSetupRequiredPage = lazyWithPrefetch(
+  () => import("@/pages/auth/mfa/mfa-setup-required.tsx"),
+);
 const Home = lazyWithPrefetch(() => import("@/pages/dashboard/home"));
 const Page = lazyWithPrefetch(() => import("@/pages/page/page"), {
   prefetchFirst: true,
@@ -90,6 +94,8 @@ export default function App() {
       <Routes>
         <Route index element={<Navigate to="/home" />} />
         <Route path={"/login"} element={<LoginPage />} />
+        <Route path={"/login/mfa"} element={<MfaChallengePage />} />
+        <Route path={"/login/mfa/setup"} element={<MfaSetupRequiredPage />} />
         <Route path={"/invites/:invitationId"} element={<InviteSignup />} />
         <Route path={"/forgot-password"} element={<ForgotPassword />} />
         <Route path={"/password-reset"} element={<PasswordReset />} />

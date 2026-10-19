@@ -66,8 +66,15 @@ export class AuthService {
   ) {}
 
   async login(loginDto: LoginDto, workspaceId: string) {
+    const user = await this.validateCredentials(loginDto, workspaceId);
+    return this.completeLogin(user, workspaceId, 'password');
+  }
+
+  /** Checks email and password; throws on mismatch. Does not sign in. */
+  async validateCredentials(loginDto: LoginDto, workspaceId: string) {
     const user = await this.userRepo.findByEmail(loginDto.email, workspaceId, {
       includePassword: true,
+      includeUserMfa: true,
     });
 
     const errorMessage = 'Email or password does not match';
@@ -92,14 +99,20 @@ export class AuthService {
       appSecret: this.environmentService.getAppSecret(),
     });
 
+    return user;
+  }
+
+  /** Records the login and creates a session for an authenticated user. */
+  async completeLogin(user: User, workspaceId: string, source: string) {
     user.lastLoginAt = new Date();
     await this.userRepo.updateLastLogin(user.id, workspaceId);
 
+    this.auditService.setActorId(user.id);
     this.auditService.log({
       event: AuditEvent.USER_LOGIN,
       resourceType: AuditResource.USER,
       resourceId: user.id,
-      metadata: { source: 'password' },
+      metadata: { source },
     });
 
     return this.sessionService.createSessionAndToken(user);

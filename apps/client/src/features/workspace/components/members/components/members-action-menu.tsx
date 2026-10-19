@@ -1,6 +1,14 @@
 import { Menu, ActionIcon, Text } from "@mantine/core";
 import React from "react";
-import { IconDots, IconTrash, IconUserOff, IconUserCheck } from "@tabler/icons-react";
+import {
+  IconDots,
+  IconTrash,
+  IconUserOff,
+  IconUserCheck,
+  IconShieldOff,
+} from "@tabler/icons-react";
+import { notifications } from "@mantine/notifications";
+import { resetUserMfa } from "@/features/mfa/mfa-service.ts";
 import { modals } from "@mantine/modals";
 import {
   useDeleteWorkspaceMemberMutation,
@@ -57,6 +65,30 @@ export default function MemberActionMenu({
       onConfirm: isDeactivated ? onActivate : onDeactivate,
     });
 
+  const openResetMfaModal = () =>
+    modals.openConfirmModal({
+      title: t("Reset two-factor authentication"),
+      children: (
+        <Text size="sm">
+          {t(
+            "{{name}} will be able to sign in with just their password and set up two-factor authentication again.",
+            { name },
+          )}
+        </Text>
+      ),
+      centered: true,
+      labels: { confirm: t("Reset"), cancel: t("Cancel") },
+      confirmProps: { color: "orange" },
+      onConfirm: async () => {
+        try {
+          await resetUserMfa(userId);
+          notifications.show({ message: t("Two-factor authentication reset") });
+        } catch (err: any) {
+          notifications.show({ message: err?.response?.data?.message, color: "red" });
+        }
+      },
+    });
+
   const onRevoke = async () => {
     await deleteWorkspaceMemberMutation.mutateAsync({ userId });
   };
@@ -110,6 +142,14 @@ export default function MemberActionMenu({
             disabled={!isAdmin}
           >
             {isDeactivated ? t("Activate member") : t("Deactivate member")}
+          </Menu.Item>
+
+          <Menu.Item
+            onClick={openResetMfaModal}
+            leftSection={<IconShieldOff size={16} />}
+            disabled={!isAdmin}
+          >
+            {t("Reset 2FA")}
           </Menu.Item>
 
           <Menu.Divider />
