@@ -173,7 +173,7 @@ The Docmost Enterprise Edition code (`apps/client/src/ee`, `apps/server/src/ee`,
 unavailable or re-implemented here as new AGPL-licensed code: DOCX and PDF
 import, comment resolution, templates, page verification and approval,
 personal spaces, API keys, audit logs, page-level permissions and two-factor
-authentication (TOTP). The list of open-source features is kept in
+authentication (TOTP) and single sign-on via OpenID Connect. The list of open-source features is kept in
 `apps/server/src/common/open-source-features.ts`.
 
 ### Contributing

@@ -15,7 +15,11 @@ import { zod4Resolver } from "mantine-form-zod-resolver";
 import { useParams, useSearchParams } from "react-router-dom";
 import useAuth from "@/features/auth/hooks/use-auth";
 import classes from "@/features/auth/components/auth.module.css";
-import { useGetInvitationQuery } from "@/features/workspace/queries/workspace-query.ts";
+import {
+  useGetInvitationQuery,
+  useWorkspacePublicDataQuery,
+} from "@/features/workspace/queries/workspace-query.ts";
+import { SsoLoginButtons } from "@/features/sso/sso-login-buttons.tsx";
 import { useRedirectIfAuthenticated } from "@/features/auth/hooks/use-redirect-if-authenticated.ts";
 import { useTranslation } from "react-i18next";
 import { AuthLayout } from "./auth-layout.tsx";
@@ -32,6 +36,7 @@ export function InviteSignUpForm() {
   const params = useParams();
   const [searchParams] = useSearchParams();
 
+  const { data: publicData } = useWorkspacePublicDataQuery();
   const { data: invitation, isError } = useGetInvitationQuery(
     params?.invitationId,
   );
@@ -73,6 +78,11 @@ export function InviteSignUpForm() {
           {t("Join the workspace")}
         </Title>
 
+
+        <SsoLoginButtons
+          providers={publicData?.authProviders}
+          withDivider={!invitation.enforceSso}
+        />
 
         {!invitation.enforceSso && (
           <Stack align="stretch" justify="center" gap="xl">

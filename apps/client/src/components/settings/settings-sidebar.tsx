@@ -13,6 +13,7 @@ import {
   IconShieldCheck,
   IconKey,
   IconHistory,
+  IconLock,
 } from "@tabler/icons-react";
 import { Link, useLocation } from "react-router-dom";
 import classes from "./settings.module.css";
@@ -81,6 +82,12 @@ const groupedData: DataGroup[] = [
     items: [
       { label: "General", icon: IconSettings, path: "/settings/workspace" },
       { label: "Members", icon: IconUsers, path: "/settings/members" },
+      {
+        label: "Security & SSO",
+        icon: IconLock,
+        path: "/settings/security",
+        role: "admin",
+      },
       { label: "Groups", icon: IconUsersGroup, path: "/settings/groups" },
       { label: "Spaces", icon: IconSpaces, path: "/settings/spaces" },
       { label: "Public sharing", icon: IconWorld, path: "/settings/sharing" },

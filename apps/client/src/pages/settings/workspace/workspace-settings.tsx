@@ -40,15 +40,6 @@ export default function WorkspaceSettings() {
             field="allowPersonalSpaces"
             read={(ws) => ws?.settings?.spaces?.allowPersonal === true}
           />
-          <Divider my="md" />
-          <WorkspaceSettingToggle
-            label={t("Require two-factor authentication")}
-            description={t(
-              "Members without two-factor authentication must set it up the next time they sign in.",
-            )}
-            field="enforceMfa"
-            read={(ws) => ws?.enforceMfa === true}
-          />
         </>
       )}
 

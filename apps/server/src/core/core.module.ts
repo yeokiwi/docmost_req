@@ -35,6 +35,7 @@ import { ApiKeyModule } from './api-key/api-key.module';
 import { AuditViewerModule } from './audit/audit.module';
 import { PagePermissionModule } from './page-permission/page-permission.module';
 import { MfaModule } from './mfa/mfa.module';
+import { SsoModule } from './sso/sso.module';
 import { ClsMiddleware } from 'nestjs-cls';
 
 @Module({
@@ -52,6 +53,7 @@ import { ClsMiddleware } from 'nestjs-cls';
     AuditViewerModule,
     PagePermissionModule,
     MfaModule,
+    SsoModule,
     SearchModule,
     SpaceModule,
     GroupModule,
