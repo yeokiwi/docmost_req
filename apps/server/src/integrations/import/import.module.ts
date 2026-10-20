@@ -1,3 +1,4 @@
+import { ConfluenceImportService } from './services/confluence-import.service';
 import { Module } from '@nestjs/common';
 import { ImportService } from './services/import.service';
 import { ImportController } from './import.controller';
@@ -16,6 +17,7 @@ import { PageModule } from '../../core/page/page.module';
     FileTaskProcessor,
     ImportAttachmentService,
     DocumentImportService,
+    ConfluenceImportService,
   ],
   exports: [ImportService, ImportAttachmentService],
   controllers: [ImportController, FileTaskController],

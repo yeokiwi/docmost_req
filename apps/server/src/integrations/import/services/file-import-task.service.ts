@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
 import * as path from 'path';
 import { jsonToText } from '../../../collaboration/collaboration.util';
 import { InjectKysely } from 'nestjs-kysely';
@@ -33,6 +33,7 @@ import { executeTx } from '@docmost/db/utils';
 import { BacklinkRepo } from '@docmost/db/repos/backlink/backlink.repo';
 import { ImportAttachmentService } from './import-attachment.service';
 import { ModuleRef } from '@nestjs/core';
+import { ConfluenceImportService } from './confluence-import.service';
 import { PageService } from '../../../core/page/services/page.service';
 import { ImportPageNode } from '../dto/file-task-dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -57,6 +58,8 @@ export class FileImportTaskService {
     private moduleRef: ModuleRef,
     private eventEmitter: EventEmitter2,
     @Inject(AUDIT_SERVICE) private readonly auditService: IAuditService,
+    @Inject(forwardRef(() => ConfluenceImportService))
+    private readonly confluenceImportService: ConfluenceImportService,
   ) {}
 
   async processZIpImport(fileTaskId: string): Promise<void> {
@@ -116,22 +119,7 @@ export class FileImportTaskService {
       }
 
       if (fileTask.source === FileImportSource.Confluence) {
-        let ConfluenceModule: any;
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          ConfluenceModule = require('./../../../ee/confluence-import/confluence-import.service');
-        } catch (err) {
-          this.logger.error(
-            'Confluence import requested but EE module not bundled in this build',
-          );
-          return;
-        }
-        const confluenceImportService = this.moduleRef.get(
-          ConfluenceModule.ConfluenceImportService,
-          { strict: false },
-        );
-
-        await confluenceImportService.processConfluenceImport({
+        await this.confluenceImportService.processConfluenceImport({
           extractDir: tmpExtractDir,
           fileTask,
         });
@@ -399,6 +387,64 @@ export class FileImportTaskService {
       }
     });
 
+    await this.persistPageTree({
+      pagesMap,
+      extractDir,
+      fileTask,
+      attachmentCandidates,
+      spaceSlug: space?.slug,
+      loadPage: async (page) => {
+        const absPath = path.join(extractDir, page.filePath);
+        let content = '';
+
+        // Check if file exists (placeholder pages won't have physical files)
+        try {
+          await fs.access(absPath);
+          content = await fs.readFile(absPath, 'utf-8');
+
+          if (page.fileExtension.toLowerCase() === '.md') {
+            content = await markdownToHtml(content);
+          }
+        } catch (err: any) {
+          if (err?.code === 'ENOENT') {
+            // Use empty content, title will be the folder name
+            content = '';
+          } else {
+            throw err;
+          }
+        }
+        return { html: content };
+      },
+    });
+  }
+
+  /**
+   * Converts and inserts an already-structured page tree (ids, parents and
+   * positions set) in one transaction, with attachments and backlinks.
+   */
+  async persistPageTree(opts: {
+    pagesMap: Map<string, ImportPageNode>;
+    extractDir: string;
+    fileTask: FileTask;
+    attachmentCandidates: Map<string, string>;
+    spaceSlug?: string;
+    keepHeadings?: boolean;
+    loadPage: (page: ImportPageNode) => Promise<{
+      html: string;
+      attachments?: { href: string; fileName: string; mimeType: string }[];
+      isConfluence?: boolean;
+    }>;
+  }): Promise<void> {
+    const {
+      pagesMap,
+      extractDir,
+      fileTask,
+      attachmentCandidates,
+      loadPage,
+      keepHeadings,
+    } = opts;
+    const space = { slug: opts.spaceSlug };
+
     // internal page links
     const filePathToPageMetaMap = new Map<
       string,
@@ -475,34 +521,18 @@ export class FileImportTaskService {
           const levelPages = pagesByLevel.get(level)!;
 
           for (const [filePath, page] of levelPages) {
-            const absPath = path.join(extractDir, filePath);
-            let content = '';
-
-            // Check if file exists (placeholder pages won't have physical files)
-            try {
-              await fs.access(absPath);
-              content = await fs.readFile(absPath, 'utf-8');
-
-              if (page.fileExtension.toLowerCase() === '.md') {
-                content = await markdownToHtml(content);
-              }
-            } catch (err: any) {
-              if (err?.code === 'ENOENT') {
-                // Use empty content, title will be the folder name
-                content = '';
-              } else {
-                throw err;
-              }
-            }
+            const loaded = await loadPage(page);
 
             const htmlContent =
               await this.importAttachmentService.processAttachments({
-                html: content,
+                html: loaded.html,
                 pageRelativePath: page.filePath,
                 extractDir,
                 pageId: page.id,
                 fileTask,
                 attachmentCandidates,
+                pageAttachments: loaded.attachments,
+                isConfluenceImport: loaded.isConfluence,
               });
 
             const { html, backlinks, pageIcon } = await formatImportHtml({
@@ -519,8 +549,10 @@ export class FileImportTaskService {
               await this.importService.processHTML(html),
             );
 
-            const { title, prosemirrorJson } =
-              this.importService.extractTitleAndRemoveHeading(pmState);
+            // sources with a separate title keep every heading in the body
+            const { title, prosemirrorJson } = keepHeadings
+              ? { title: null, prosemirrorJson: pmState }
+              : this.importService.extractTitleAndRemoveHeading(pmState);
 
             const insertablePage: InsertablePage = {
               id: page.id,
